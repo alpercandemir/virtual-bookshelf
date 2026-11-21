@@ -27,7 +27,6 @@ import {
 import { CreateShelfModal } from './components/customizer/CreateShelfModal';
 import { BookRevealModal } from './components/book-detail/BookRevealModal';
 import { BookSearchModal } from './components/search/BookSearchModal';
-import { ManualBookModal } from './components/search/ManualBookModal';
 import { LibrarySearchPalette } from './components/search/LibrarySearchPalette';
 import { ApiError } from './api/client';
 
@@ -83,8 +82,6 @@ function LibraryWorkspace() {
     null
   );
   const [searchOpen, setSearchOpen] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualPrefill, setManualPrefill] = useState('');
   const [targetCompartmentId, setTargetCompartmentId] = useState<string | null>(
     null
   );
@@ -112,7 +109,6 @@ function LibraryWorkspace() {
         bookshelves.length <= 1 ||
         selectedShelfBookId ||
         searchOpen ||
-        manualOpen ||
         customizerOpen ||
         createShelfOpen ||
         libraryFindOpen
@@ -134,7 +130,6 @@ function LibraryWorkspace() {
     bookshelves.length,
     selectedShelfBookId,
     searchOpen,
-    manualOpen,
     customizerOpen,
     createShelfOpen,
     libraryFindOpen,
@@ -301,11 +296,6 @@ function LibraryWorkspace() {
         onOpenSearch={() => {
           setTargetCompartmentId(null);
           setSearchOpen(true);
-        }}
-        onOpenManualAdd={() => {
-          setTargetCompartmentId(null);
-          setManualPrefill('');
-          setManualOpen(true);
         }}
         onOpenCustomizer={() => setCustomizerOpen(true)}
         onSeedSamples={() => seedSamples(bookshelf.id)}
@@ -522,10 +512,6 @@ function LibraryWorkspace() {
         allBookshelves={bookshelves}
         initialCompartmentId={targetCompartmentId}
         onAddBook={addBookToShelf}
-        onOpenManualEntry={(prefill) => {
-          setManualPrefill(prefill ?? '');
-          setManualOpen(true);
-        }}
         onToast={pushToast}
       />
 
@@ -537,15 +523,6 @@ function LibraryWorkspace() {
           selectBookshelf(shelfId, true);
           setSelectedShelfBookId(sb.id);
         }}
-      />
-
-      <ManualBookModal
-        open={manualOpen}
-        onClose={() => setManualOpen(false)}
-        bookshelf={bookshelf}
-        initialTitle={manualPrefill}
-        initialCompartmentId={targetCompartmentId}
-        onAddBook={addBookToShelf}
       />
 
       <ShelfCustomizerDrawer

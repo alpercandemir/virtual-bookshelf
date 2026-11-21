@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  BookPlus,
   Command,
   LayoutGrid,
   Library,
@@ -26,7 +25,6 @@ interface TopToolbarProps {
   onOpenCreateShelf: () => void;
   onOpenLibraryFind: () => void;
   onOpenSearch: () => void;
-  onOpenManualAdd: () => void;
   onOpenCustomizer: () => void;
   onSeedSamples: () => void;
   onLogout: () => void;
@@ -43,7 +41,6 @@ export function TopToolbar({
   onOpenCreateShelf,
   onOpenLibraryFind,
   onOpenSearch,
-  onOpenManualAdd,
   onOpenCustomizer,
   onSeedSamples,
   onLogout,
@@ -215,19 +212,6 @@ export function TopToolbar({
                       {user.username}
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenManualAdd();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs ui-text-secondary hover:bg-[#cfa458]/15 cursor-pointer"
-                  >
-                    <BookPlus className="w-3.5 h-3.5 text-[#c89d54]" />
-                    Manual Book Entry
-                  </button>
 
                   {totalBooks === 0 && viewMode === 'single' && (
                     <button

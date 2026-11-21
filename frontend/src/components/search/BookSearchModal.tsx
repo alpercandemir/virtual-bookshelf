@@ -10,10 +10,13 @@ import {
   Loader2,
   Plus,
   Search,
+  Sparkles,
+  Upload,
   X,
 } from 'lucide-react';
 import {
   resolveSpineAppearance,
+  type BookFormat,
   type BookshelfDto,
   type SearchBookResult,
   type SearchEditionSummary,
@@ -29,8 +32,8 @@ interface BookSearchModalProps {
   bookshelf: BookshelfDto;
   allBookshelves?: BookshelfDto[];
   initialCompartmentId?: string | null;
+  initialTab?: 'search' | 'manual';
   onAddBook: (payload: Parameters<typeof api.addBook>[0]) => Promise<unknown>;
-  onOpenManualEntry: (prefillQuery?: string) => void;
   onToast: (message: string, tone?: 'info' | 'success' | 'error') => void;
 }
 
@@ -86,10 +89,10 @@ function ResultCard({
   return (
     <div
       data-testid={`search-result-${item.providerBookId}`}
-      className="flex gap-3.5 rounded-xl border border-[#c9a15c]/18 bg-[#150f0b] hover:border-[#d8b064]/40 p-3.5 transition"
+      className="flex gap-3.5 rounded-xl border ui-surface-card hover:border-[#cfa458]/55 p-3.5 transition"
     >
-      {/* Book Cover Thumbnail (Procedural cover always renders underneath while real cover loads) */}
-      <div className="relative w-[68px] h-[102px] shrink-0 rounded overflow-hidden shadow-[0_6px_14px_rgba(0,0,0,0.65)] bg-[#231912]">
+      {/* Book Cover Thumbnail */}
+      <div className="relative w-[68px] h-[102px] shrink-0 rounded overflow-hidden shadow-[0_6px_14px_rgba(0,0,0,0.45)] bg-[#231912]">
         <div className="relative z-0 w-full h-full isolate">
           <ProceduralCover
             title={item.title}
@@ -117,13 +120,13 @@ function ResultCard({
       {/* Metadata & Edition Selection */}
       <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-display text-lg font-semibold text-[#f7ecd9] leading-snug line-clamp-2">
+          <h3 className="font-display text-lg font-semibold ui-text-primary leading-snug line-clamp-2">
             {item.title}
           </h3>
-          <p className="text-xs text-[#d6b26f] mt-0.5 truncate">
+          <p className="text-xs text-[#c89d54] mt-0.5 truncate font-medium">
             {item.authors.length > 0 ? item.authors.join(', ') : 'Unknown author'}
           </p>
-          <p className="text-[11px] text-[#9e8a71] mt-1 line-clamp-2">
+          <p className="text-[11px] ui-text-muted mt-1 line-clamp-2">
             {[
               displayDate?.slice(0, 4),
               displayPublisher,
@@ -137,13 +140,13 @@ function ResultCard({
 
         <div className="space-y-2">
           {item.editions && item.editions.length > 1 && (
-            <label className="flex items-center gap-1.5 text-[11px] text-[#b8a388] min-w-0">
-              <Layers className="w-3 h-3 text-[#d1aa5e] shrink-0" />
+            <label className="flex items-center gap-1.5 text-[11px] ui-text-secondary min-w-0">
+              <Layers className="w-3 h-3 text-[#c89d54] shrink-0" />
               <select
                 aria-label={`Choose edition for ${item.title}`}
                 value={selectedEditionIdx}
                 onChange={(e) => setSelectedEditionIdx(Number(e.target.value))}
-                className="flex-1 min-w-0 h-7 rounded bg-[#0f0a07] border border-[#c9a15c]/25 px-2 text-[11px] text-[#ead9be] truncate"
+                className="flex-1 min-w-0 h-7 rounded ui-surface-input border px-2 text-[11px] truncate"
               >
                 {item.editions.map((ed, idx) => (
                   <option key={`${ed.providerBookId}-${idx}`} value={idx}>
@@ -157,11 +160,11 @@ function ResultCard({
 
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[10px] uppercase tracking-wider text-[#7c6a56] truncate">
+              <span className="text-[10px] uppercase tracking-wider ui-text-muted truncate">
                 {item.provider === 'google_books' ? 'Google Books' : 'Open Library'}
               </span>
               {alreadyInLibrary && !justShelved && (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-950/75 border border-amber-500/35 px-1.5 py-0.2 text-[9px] font-medium text-amber-200 shrink-0">
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 px-1.5 py-0.2 text-[9px] font-medium text-amber-500 shrink-0">
                   In Library
                 </span>
               )}
@@ -173,7 +176,7 @@ function ResultCard({
               onClick={() => onSelectAdd(item, activeEdition)}
               className={`inline-flex items-center gap-1.5 rounded-lg font-semibold text-xs px-3 py-1.5 shadow transition cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 ${
                 justShelved
-                  ? 'bg-emerald-800/90 hover:bg-emerald-700 text-emerald-50 border border-emerald-400/40'
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-emerald-50 border border-emerald-400/40'
                   : 'bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] text-[#1b1208]'
               }`}
             >
@@ -199,10 +202,13 @@ export function BookSearchModal({
   bookshelf,
   allBookshelves,
   initialCompartmentId,
+  initialTab = 'search',
   onAddBook,
-  onOpenManualEntry,
   onToast,
 }: BookSearchModalProps) {
+  const [activeTab, setActiveTab] = useState<'search' | 'manual'>(initialTab);
+
+  // Search state
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState<'all' | 'title' | 'author' | 'isbn'>('all');
   const [targetCompartmentId, setTargetCompartmentId] = useState<string>('');
@@ -212,6 +218,21 @@ export function BookSearchModal({
   const [shelvedIds, setShelvedIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse | null>(null);
+
+  // Manual entry state
+  const [manualTitle, setManualTitle] = useState('');
+  const [authorsText, setAuthorsText] = useState('');
+  const [isbn, setIsbn] = useState('');
+  const [publisher, setPublisher] = useState('');
+  const [publicationDate, setPublicationDate] = useState('');
+  const [pageCount, setPageCount] = useState('320');
+  const [format, setFormat] = useState<BookFormat>('hardcover');
+  const [description, setDescription] = useState('');
+  const [spineColor, setSpineColor] = useState('#5A1F24');
+  const [useCustomColor, setUseCustomColor] = useState(false);
+  const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const ownedKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -230,12 +251,24 @@ export function BookSearchModal({
 
   useEffect(() => {
     if (open) {
+      setActiveTab(initialTab);
       setShelvedIds(new Set());
       setTargetCompartmentId(
         initialCompartmentId || bookshelf.compartments[0]?.id || ''
       );
+      setManualTitle('');
+      setAuthorsText('');
+      setIsbn('');
+      setPublisher('');
+      setPublicationDate('');
+      setPageCount('320');
+      setFormat('hardcover');
+      setDescription('');
+      setUseCustomColor(false);
+      setUploadedCoverUrl(null);
+      setManualError(null);
     }
-  }, [open, initialCompartmentId, bookshelf.compartments]);
+  }, [open, initialTab, initialCompartmentId, bookshelf.compartments]);
 
   useEffect(() => {
     if (!open) return;
@@ -247,6 +280,18 @@ export function BookSearchModal({
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const switchToManual = (prefill?: string) => {
+    const candidate = (prefill ?? query).trim();
+    if (candidate && !manualTitle.trim()) {
+      if (/^[0-9-]{9,17}[0-9Xx]?$/.test(candidate)) {
+        setIsbn(candidate);
+      } else {
+        setManualTitle(candidate);
+      }
+    }
+    setActiveTab('manual');
+  };
 
   const runSearch = async (nextPage = 1) => {
     const trimmed = query.trim();
@@ -266,7 +311,7 @@ export function BookSearchModal({
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Search failed. Please try again or add the book manually.'
+          : 'Search failed. Please try again or switch to Manual Entry.'
       );
       setResponse(null);
     } finally {
@@ -274,7 +319,7 @@ export function BookSearchModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     runSearch(1);
   };
@@ -288,7 +333,6 @@ export function BookSearchModal({
       const coverUrl = edition?.coverUrl ?? item.coverUrl;
       let visualOverrides = undefined;
 
-      // Attempt fast cover palette extraction so the newly shelved spine matches its real cover!
       const proxied = getProxiedCoverUrl(coverUrl);
       if (proxied) {
         const extracted = await extractCoverPaletteFromUrl(proxied);
@@ -341,114 +385,140 @@ export function BookSearchModal({
     }
   };
 
+  const handleUploadCover = async (file: File | undefined) => {
+    if (!file) return;
+    setManualError(null);
+    try {
+      const { url } = await api.uploadBookImage(file);
+      setUploadedCoverUrl(url);
+    } catch (err) {
+      setManualError(err instanceof ApiError ? err.message : 'Cover upload failed.');
+    }
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setManualError(null);
+    setManualSubmitting(true);
+    try {
+      const authors = authorsText
+        .split(',')
+        .map((a) => a.trim())
+        .filter(Boolean);
+      const parsedPages = pageCount ? Number(pageCount) : null;
+
+      await onAddBook({
+        compartmentId: targetCompartmentId || undefined,
+        book: {
+          provider: 'manual',
+          title: manualTitle.trim(),
+          authors,
+          isbn: isbn.trim() || null,
+          publisher: publisher.trim() || null,
+          publicationDate: publicationDate.trim() || null,
+          pageCount: parsedPages && parsedPages > 0 ? parsedPages : null,
+          format,
+          description: description.trim() || null,
+          coverUrl: uploadedCoverUrl,
+        },
+        visualOverrides: useCustomColor ? { spineColor } : undefined,
+      });
+      onClose();
+    } catch (err) {
+      setManualError(
+        err instanceof ApiError ? err.message : 'Could not add book.'
+      );
+    } finally {
+      setManualSubmitting(false);
+    }
+  };
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Search and Add Books"
+      aria-label="Add Book to Bookshelf"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         data-testid="book-search-modal"
-        className="w-full max-w-3xl max-h-[90vh] rounded-2xl border border-[#cfa55a]/30 bg-[#1a130e] shadow-[0_32px_80px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden"
+        className="w-full max-w-3xl max-h-[90vh] rounded-2xl border ui-surface-panel shadow-[0_32px_80px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-[#c9a15c]/15 bg-[#140e0a] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <Search className="w-4 h-4 text-[#dfb86d]" />
-            <h2 className="font-display text-2xl font-semibold text-[#f7ebd7]">
-              Discover &amp; Shelve Books
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenManualEntry(query);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a15c]/25 bg-[#1f1610] hover:bg-[#2c1f16] px-3 py-1.5 text-xs text-[#ebd9bc] transition cursor-pointer"
-            >
-              <BookPlus className="w-3.5 h-3.5 text-[#dfb86d]" />
-              Manual Entry
-            </button>
+        {/* Header with Integrated Search / Manual Entry Tabs */}
+        <div className="px-6 pt-4 pb-3 border-b ui-surface-header space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              {activeTab === 'search' ? (
+                <Search className="w-4 h-4 text-[#c89d54]" />
+              ) : (
+                <BookPlus className="w-4 h-4 text-[#c89d54]" />
+              )}
+              <h2 className="font-display text-2xl font-semibold ui-text-primary">
+                Add Book to Shelf
+              </h2>
+            </div>
+
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close search"
-              className="p-1.5 rounded-lg text-[#a99479] hover:text-[#f6e8d0] hover:bg-[#2a1f16] cursor-pointer"
+              aria-label="Close add book dialog"
+              className="p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
 
-        {/* Search Controls */}
-        <form
-          onSubmit={handleSubmit}
-          className="px-6 py-4 border-b border-[#c9a15c]/12 bg-[#17100c] space-y-3"
-        >
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-[#8c7860] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="search"
-                autoFocus
-                data-testid="book-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={
-                  searchType === 'isbn'
-                    ? 'Enter 10- or 13-digit ISBN (e.g. 9780441172719)'
-                    : searchType === 'author'
-                      ? 'Search by author (e.g. Ursula K. Le Guin)'
-                      : searchType === 'title'
-                        ? 'Search by title (e.g. The Name of the Rose)'
-                        : 'Search title, author, or ISBN...'
-                }
-                className="w-full rounded-lg bg-[#100b08] border border-[#c9a15c]/25 pl-10 pr-3.5 py-2.5 text-sm text-[#f7eedf] placeholder:text-[#6f5d49] focus:outline-none focus:border-[#dfb86d]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !query.trim()}
-              data-testid="book-search-submit"
-              className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-5 py-2.5 shadow cursor-pointer shrink-0"
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-
+          {/* Segmented Mode Tabs + Hover Hint on Manual Entry */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Search Field Tabs */}
-            <div className="flex items-center gap-1">
-              {SEARCH_MODES.map((m) => (
+            <div className="inline-flex items-center gap-1 rounded-xl border ui-surface-input p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab('search')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  activeTab === 'search'
+                    ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
+                    : 'ui-text-secondary hover:ui-text-primary'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                Search Catalog
+              </button>
+
+              <div className="relative group/manual-tab">
                 <button
-                  key={m.value}
                   type="button"
-                  onClick={() => setSearchType(m.value)}
-                  className={`px-2.5 py-1 rounded-md text-xs transition cursor-pointer ${
-                    searchType === m.value
-                      ? 'bg-[#342416] text-[#f6e3ba] border border-[#dab367]/45'
-                      : 'text-[#a38f76] hover:text-[#e6d5b9]'
+                  onClick={() => switchToManual()}
+                  title="If you couldn't find the book in search, you can add it manually here"
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                    activeTab === 'manual'
+                      ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
+                      : 'ui-text-secondary hover:ui-text-primary'
                   }`}
                 >
-                  {m.label}
+                  <BookPlus className="w-3.5 h-3.5" />
+                  Manual Entry
                 </button>
-              ))}
+                {activeTab === 'search' && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none opacity-0 group-hover/manual-tab:opacity-100 transition-opacity duration-150 absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 w-60 rounded-lg border border-[#cfa458]/40 bg-[#16100b] px-3 py-2 text-[11px] leading-snug text-[#f4e6ce] shadow-xl text-center"
+                  >
+                    Couldn&apos;t find the book in search? Add a custom edition manually.
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Destination Shelf Picker */}
-            <label className="flex items-center gap-2 text-xs text-[#baa589]">
+            {/* Destination Shelf Picker (shared across both tabs) */}
+            <label className="flex items-center gap-2 text-xs ui-text-secondary">
               <span>Place on:</span>
               <select
                 value={targetCompartmentId}
                 onChange={(e) => setTargetCompartmentId(e.target.value)}
-                className="rounded-md bg-[#100b08] border border-[#c9a15c]/25 px-2.5 py-1 text-xs text-[#f0e2ca]"
+                className="rounded-md ui-surface-input border px-2.5 py-1 text-xs"
               >
                 {bookshelf.compartments.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -461,150 +531,397 @@ export function BookSearchModal({
               </select>
             </label>
           </div>
-        </form>
+        </div>
 
-        {/* Results Body */}
-        <div className="flex-1 overflow-y-auto library-scroll p-6 space-y-3">
-          {error && (
-            <div className="rounded-xl border border-red-400/35 bg-red-950/40 p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" />
-              <div className="text-sm text-red-100">
-                <p>{error}</p>
+        {activeTab === 'search' ? (
+          <>
+            {/* Search Controls */}
+            <form
+              onSubmit={handleSearchSubmit}
+              className="px-6 py-4 border-b ui-surface-header space-y-3"
+            >
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 ui-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="search"
+                    autoFocus
+                    data-testid="book-search-input"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={
+                      searchType === 'isbn'
+                        ? 'Enter 10- or 13-digit ISBN (e.g. 9780441172719)'
+                        : searchType === 'author'
+                          ? 'Search by author (e.g. Ursula K. Le Guin)'
+                          : searchType === 'title'
+                            ? 'Search by title (e.g. The Name of the Rose)'
+                            : 'Search title, author, or ISBN...'
+                    }
+                    className="w-full rounded-lg ui-surface-input border pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:border-[#cfa458]"
+                  />
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenManualEntry(query);
-                  }}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#f2cf84] hover:underline cursor-pointer"
+                  type="submit"
+                  disabled={loading || !query.trim()}
+                  data-testid="book-search-submit"
+                  className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-5 py-2.5 shadow cursor-pointer shrink-0"
                 >
-                  <BookPlus className="w-3.5 h-3.5" />
-                  Add this book manually instead
+                  {loading ? 'Searching...' : 'Search'}
                 </button>
               </div>
-            </div>
-          )}
 
-          {response?.fallbackNotice && (
-            <div className="rounded-lg border border-amber-500/25 bg-amber-950/30 px-3.5 py-2 text-xs text-amber-200/90">
-              {response.fallbackNotice}
-            </div>
-          )}
-
-          {loading && (
-            <div className="py-16 flex flex-col items-center justify-center text-[#bca68a] gap-3">
-              <Loader2 className="w-7 h-7 animate-spin text-[#dfb86d]" />
-              <p className="text-sm">Searching library catalogs...</p>
-            </div>
-          )}
-
-          {!loading && !response && !error && (
-            <div className="py-12 text-center space-y-3">
-              <BookOpen className="w-10 h-10 text-[#867057] mx-auto" />
-              <p className="text-sm text-[#c6b296]">
-                Search by title, author, or ISBN to fetch real covers and bibliographic metadata.
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                {['The Hobbit', 'Jorge Luis Borges', '9780141439518'].map((hint) => (
+              {/* Search Field Tabs */}
+              <div className="flex items-center gap-1">
+                {SEARCH_MODES.map((m) => (
                   <button
-                    key={hint}
+                    key={m.value}
                     type="button"
-                    onClick={() => {
-                      setQuery(hint);
-                      setSearchType(/^\d+$/.test(hint) ? 'isbn' : 'all');
-                    }}
-                    className="rounded-full border border-[#c9a15c]/22 bg-[#140e0a] hover:border-[#dfb86d]/50 px-3 py-1 text-xs text-[#d6c2a5] cursor-pointer"
+                    onClick={() => setSearchType(m.value)}
+                    className={`px-2.5 py-1 rounded-md text-xs transition cursor-pointer ${
+                      searchType === m.value
+                        ? 'bg-[#cfa458]/20 ui-text-primary border border-[#cfa458]/50 font-medium'
+                        : 'ui-text-muted hover:ui-text-primary'
+                    }`}
                   >
-                    Try &ldquo;{hint}&rdquo;
+                    {m.label}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            </form>
 
-          {!loading && response && response.items.length === 0 && (
-            <div className="py-12 text-center space-y-3">
-              <p className="text-sm text-[#c6b296]">
-                No catalog editions matched &ldquo;{response.query}&rdquo;.
-              </p>
+            {/* Results Body */}
+            <div className="flex-1 overflow-y-auto library-scroll p-6 space-y-3">
+              {error && (
+                <div className="rounded-xl border border-red-400/35 bg-red-950/35 p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-200">
+                    <p>{error}</p>
+                    <button
+                      type="button"
+                      onClick={() => switchToManual(query)}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#f2cf84] hover:underline cursor-pointer"
+                    >
+                      <BookPlus className="w-3.5 h-3.5" />
+                      Switch to Manual Entry instead
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {response?.fallbackNotice && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-500">
+                  {response.fallbackNotice}
+                </div>
+              )}
+
+              {loading && (
+                <div className="py-16 flex flex-col items-center justify-center ui-text-secondary gap-3">
+                  <Loader2 className="w-7 h-7 animate-spin text-[#c89d54]" />
+                  <p className="text-sm">Searching library catalogs...</p>
+                </div>
+              )}
+
+              {!loading && !response && !error && (
+                <div className="py-10 text-center space-y-3">
+                  <BookOpen className="w-10 h-10 ui-text-muted opacity-60 mx-auto" />
+                  <p className="text-sm ui-text-secondary">
+                    Search by title, author, or ISBN to fetch real covers and bibliographic metadata.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    {['The Hobbit', 'Jorge Luis Borges', '9780141439518'].map((hint) => (
+                      <button
+                        key={hint}
+                        type="button"
+                        onClick={() => {
+                          setQuery(hint);
+                          setSearchType(/^\d+$/.test(hint) ? 'isbn' : 'all');
+                        }}
+                        className="rounded-full border ui-surface-card hover:border-[#cfa458] px-3 py-1 text-xs ui-text-secondary cursor-pointer"
+                      >
+                        Try &ldquo;{hint}&rdquo;
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!loading && response && response.items.length === 0 && (
+                <div className="py-12 text-center space-y-3">
+                  <p className="text-sm ui-text-secondary">
+                    No catalog editions matched &ldquo;{response.query}&rdquo;.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => switchToManual(query)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] px-4 py-2 text-xs font-semibold text-[#1a1107] shadow cursor-pointer"
+                  >
+                    <BookPlus className="w-4 h-4" />
+                    Add &ldquo;{response.query}&rdquo; via Manual Entry
+                  </button>
+                </div>
+              )}
+
+              {!loading && response && response.items.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {response.items.map((item) => {
+                    const isOwned =
+                      ownedKeys.has(`pid:${item.providerBookId}`) ||
+                      (item.isbn
+                        ? ownedKeys.has(`isbn:${item.isbn.replace(/[^0-9X]/gi, '')}`)
+                        : false) ||
+                      ownedKeys.has(`title:${item.title.trim().toLowerCase()}`);
+                    return (
+                      <ResultCard
+                        key={item.id}
+                        item={item}
+                        adding={addingId === item.id}
+                        alreadyInLibrary={isOwned}
+                        justShelved={shelvedIds.has(item.id)}
+                        onSelectAdd={handleAddResult}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Highlighted Footer Callout for Manual Entry + Pagination */}
+            <div className="px-6 py-3.5 border-t ui-surface-header flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenManualEntry(query);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#dab468]/40 bg-[#2b1e14] px-4 py-2 text-xs font-medium text-[#f6e2b7] hover:bg-[#38271a] cursor-pointer"
+                onClick={() => switchToManual(query)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#cfa458]/35 bg-[#cfa458]/12 hover:bg-[#cfa458]/20 px-3 py-1.5 text-xs transition cursor-pointer text-left"
               >
-                <BookPlus className="w-4 h-4" />
-                Add &ldquo;{response.query}&rdquo; Manually
+                <Sparkles className="w-3.5 h-3.5 text-[#c89d54] shrink-0" />
+                <span className="ui-text-secondary">
+                  Couldn&apos;t find the book in search?{' '}
+                  <strong className="text-[#c89d54] underline underline-offset-2">
+                    Add via Manual Entry
+                  </strong>
+                </span>
               </button>
-            </div>
-          )}
 
-          {!loading && response && response.items.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {response.items.map((item) => {
-                const isOwned =
-                  ownedKeys.has(`pid:${item.providerBookId}`) ||
-                  (item.isbn
-                    ? ownedKeys.has(`isbn:${item.isbn.replace(/[^0-9X]/gi, '')}`)
-                    : false) ||
-                  ownedKeys.has(`title:${item.title.trim().toLowerCase()}`);
-                return (
-                  <ResultCard
-                    key={item.id}
-                    item={item}
-                    adding={addingId === item.id}
-                    alreadyInLibrary={isOwned}
-                    justShelved={shelvedIds.has(item.id)}
-                    onSelectAdd={handleAddResult}
-                  />
-                );
-              })}
+              {response && (response.page > 1 || response.hasMore) && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={loading || page <= 1}
+                    onClick={() => runSearch(page - 1)}
+                    className="inline-flex items-center gap-1 rounded border ui-surface-input px-2.5 py-1 text-xs ui-text-secondary disabled:opacity-40 hover:border-[#cfa458] cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Prev
+                  </button>
+                  <span className="text-xs ui-text-muted tabular-nums">
+                    Page {response.page}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={loading || !response.hasMore}
+                    onClick={() => runSearch(page + 1)}
+                    className="inline-flex items-center gap-1 rounded border ui-surface-input px-2.5 py-1 text-xs ui-text-secondary disabled:opacity-40 hover:border-[#cfa458] cursor-pointer"
+                  >
+                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Footer: Pagination & Manual Fallback */}
-        <div className="px-6 py-3.5 border-t border-[#c9a15c]/15 bg-[#130d09] flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenManualEntry(query);
-            }}
-            className="inline-flex items-center gap-1.5 text-xs text-[#d7b269] hover:underline cursor-pointer"
+          </>
+        ) : (
+          /* Integrated Manual Entry Tab */
+          <form
+            data-testid="manual-book-modal"
+            onSubmit={handleManualSubmit}
+            className="flex-1 overflow-y-auto library-scroll p-6 space-y-4"
           >
-            <BookPlus className="w-3.5 h-3.5" />
-            Can&apos;t find your book? Add manually
-          </button>
+            {manualError && (
+              <div className="rounded-lg border border-red-400/35 bg-red-950/35 px-3.5 py-2 text-xs text-red-200">
+                {manualError}
+              </div>
+            )}
 
-          {response && (response.page > 1 || response.hasMore) && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={loading || page <= 1}
-                onClick={() => runSearch(page - 1)}
-                className="inline-flex items-center gap-1 rounded border border-[#c9a15c]/25 px-2.5 py-1 text-xs text-[#e3d1b6] disabled:opacity-40 hover:bg-[#261c14] cursor-pointer"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                Prev
-              </button>
-              <span className="text-xs text-[#a59177] tabular-nums">
-                Page {response.page}
-              </span>
-              <button
-                type="button"
-                disabled={loading || !response.hasMore}
-                onClick={() => runSearch(page + 1)}
-                className="inline-flex items-center gap-1 rounded border border-[#c9a15c]/25 px-2.5 py-1 text-xs text-[#e3d1b6] disabled:opacity-40 hover:bg-[#261c14] cursor-pointer"
-              >
-                Next
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Book Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  data-testid="manual-title-input"
+                  value={manualTitle}
+                  onChange={(e) => setManualTitle(e.target.value)}
+                  placeholder="e.g. The Architecture of Happiness"
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm focus:outline-none focus:border-[#cfa458]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Author(s) (comma separated)
+                </label>
+                <input
+                  type="text"
+                  data-testid="manual-author-input"
+                  value={authorsText}
+                  onChange={(e) => setAuthorsText(e.target.value)}
+                  placeholder="e.g. Alain de Botton"
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm focus:outline-none focus:border-[#cfa458]"
+                />
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="col-span-2 sm:col-span-2">
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Format
+                </label>
+                <select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as BookFormat)}
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm"
+                >
+                  <option value="hardcover">Hardcover</option>
+                  <option value="trade-paperback">Trade Paperback</option>
+                  <option value="mass-market">Mass-Market Paperback</option>
+                  <option value="quarto">Tall Folio / Art Book</option>
+                  <option value="pocket">Pocket Edition</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Pages
+                </label>
+                <input
+                  type="number"
+                  min={16}
+                  max={3000}
+                  value={pageCount}
+                  onChange={(e) => setPageCount(e.target.value)}
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Year
+                </label>
+                <input
+                  type="text"
+                  value={publicationDate}
+                  onChange={(e) => setPublicationDate(e.target.value)}
+                  placeholder="2006"
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  Publisher
+                </label>
+                <input
+                  type="text"
+                  value={publisher}
+                  onChange={(e) => setPublisher(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                  ISBN (optional)
+                </label>
+                <input
+                  type="text"
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  placeholder="10 or 13 digits"
+                  className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Optional Spine Color & Cover Upload */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border ui-surface-card p-3">
+              <label className="inline-flex items-center gap-2 text-xs ui-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useCustomColor}
+                  onChange={(e) => setUseCustomColor(e.target.checked)}
+                  className="accent-[#c89d54]"
+                />
+                <span>Custom Spine Color</span>
+                {useCustomColor && (
+                  <input
+                    type="color"
+                    value={spineColor}
+                    onChange={(e) => setSpineColor(e.target.value)}
+                    className="w-7 h-6 rounded border border-current/25 bg-transparent cursor-pointer"
+                  />
+                )}
+              </label>
+
+              <label className="inline-flex items-center gap-1.5 rounded-md border ui-surface-input hover:border-[#cfa458] px-2.5 py-1.5 text-xs ui-text-secondary cursor-pointer">
+                <Upload className="w-3.5 h-3.5 text-[#c89d54]" />
+                {uploadedCoverUrl ? 'Cover Attached ✓' : 'Upload Cover Image'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => handleUploadCover(e.target.files?.[0])}
+                />
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider ui-text-muted mb-1.5">
+                Description / Notes
+              </label>
+              <textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional summary or personal edition notes..."
+                className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm focus:outline-none focus:border-[#cfa458]"
+              />
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('search')}
+                className="text-xs text-[#c89d54] hover:underline cursor-pointer"
+              >
+                ← Back to Catalog Search
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border ui-surface-input px-4 py-2 text-xs ui-text-secondary hover:border-[#cfa458] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualSubmitting || !manualTitle.trim()}
+                  data-testid="manual-submit-btn"
+                  className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-5 py-2 shadow cursor-pointer"
+                >
+                  {manualSubmitting ? 'Shelving...' : 'Add to Bookshelf'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
