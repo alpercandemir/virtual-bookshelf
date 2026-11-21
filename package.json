@@ -1,0 +1,25 @@
+{
+  "name": "virtual-bookshelf",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,yellow \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=backend && npm run build --workspace=frontend",
+    "typecheck": "npm run typecheck --workspace=packages/shared && npm run typecheck --workspace=backend && npm run typecheck --workspace=frontend",
+    "test": "npm run test --workspace=packages/shared && npm run test --workspace=backend && npm run test --workspace=frontend",
+    "test:e2e": "playwright test",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:push": "npm run db:push --workspace=backend",
+    "db:migrate": "npm run db:migrate --workspace=backend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.3"
+  }
+}

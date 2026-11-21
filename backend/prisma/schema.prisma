@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+
+  sessions     Session[]
+  bookshelves  Bookshelf[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Bookshelf {
+  id            String             @id @default(cuid())
+  userId        String
+  name          String             @default("My Personal Library")
+  tag           String?
+  visualTheme   String             @default("walnut")
+  roomTheme     String             @default("antique-study")
+  ordering      Int                @default(0)
+  configuration String             @default("{}")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  compartments  ShelfCompartment[]
+  shelfBooks    ShelfBook[]
+
+  @@index([userId, ordering])
+}
+
+model ShelfCompartment {
+  id          String      @id @default(cuid())
+  bookshelfId String
+  row         Int
+  column      Int
+  ordering    Int
+  widthRatio  Float       @default(1.0)
+  heightPx    Int         @default(285)
+  settings    String      @default("{}")
+
+  bookshelf   Bookshelf   @relation(fields: [bookshelfId], references: [id], onDelete: Cascade)
+  shelfBooks  ShelfBook[]
+
+  @@index([bookshelfId, row, column])
+}
+
+model Book {
+  id                 String      @id @default(cuid())
+  provider           String
+  providerBookId     String?
+  isbn               String?
+  title              String
+  authors            String      @default("[]")
+  publisher          String?
+  publicationDate    String?
+  pageCount          Int?
+  physicalDimensions String      @default("{}")
+  coverUrl           String?
+  metadata           String      @default("{}")
+  createdAt          DateTime    @default(now())
+
+  shelfBooks         ShelfBook[]
+
+  @@unique([provider, providerBookId])
+  @@index([isbn])
+}
+
+model ShelfBook {
+  id              String           @id @default(cuid())
+  bookshelfId     String
+  compartmentId   String
+  bookId          String
+  position        Int
+  visualOverrides String           @default("{}")
+  orientation     String           @default("vertical")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  bookshelf       Bookshelf        @relation(fields: [bookshelfId], references: [id], onDelete: Cascade)
+  compartment     ShelfCompartment @relation(fields: [compartmentId], references: [id], onDelete: Cascade)
+  book            Book             @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookshelfId])
+  @@index([compartmentId, position])
+}

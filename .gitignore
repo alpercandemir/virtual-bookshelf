@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/uploads/*
+!backend/uploads/.gitkeep
+coverage/
+test-results/
+playwright-report/
+.DS_Store
+*.log
+*.tsbuildinfo

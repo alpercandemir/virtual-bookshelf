@@ -1,0 +1,37 @@
+services:
+  honeybooks:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: honeybooks
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATABASE_URL: file:/data/bookshelf.db
+      UPLOADS_DIR: /data/uploads
+      STATIC_DIR: /app/frontend/dist
+      FRONTEND_ORIGIN: "https://honeybooks.138.2.168.194.sslip.io"
+      COOKIE_SECURE: "true"
+      SESSION_TTL_DAYS: "14"
+      GOOGLE_BOOKS_API_KEY: "${GOOGLE_BOOKS_API_KEY:-}"
+    volumes:
+      - honeybooks_data:/data
+    networks:
+      rparadise-tracker_default:
+        aliases:
+          - honeybooks
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  honeybooks_data:
+
+networks:
+  rparadise-tracker_default:
+    external: true

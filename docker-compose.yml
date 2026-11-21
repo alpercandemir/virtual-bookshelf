@@ -1,0 +1,31 @@
+services:
+  bookshelf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: virtual-bookshelf
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-5173}:3001"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATABASE_URL: file:/data/bookshelf.db
+      UPLOADS_DIR: /data/uploads
+      STATIC_DIR: /app/frontend/dist
+      FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:5173}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      SESSION_TTL_DAYS: "${SESSION_TTL_DAYS:-14}"
+      GOOGLE_BOOKS_API_KEY: "${GOOGLE_BOOKS_API_KEY:-}"
+    volumes:
+      - bookshelf_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  bookshelf_data:

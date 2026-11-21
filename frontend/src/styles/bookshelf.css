@@ -1,0 +1,1231 @@
+/* ==========================================================================
+   THE VIRTUAL BOOKSHELF — Physical Wood Cabinet & 3D Book Styling
+   ========================================================================== */
+
+/* --- Wood Finish Theme Tokens --- */
+.bookshelf-cabinet[data-theme="walnut"] {
+  --wood-h: url("/textures/wood-walnut-h.jpg");
+  --wood-v: url("/textures/wood-walnut-v.jpg");
+  --wood-base: #3e2618;
+  --wood-edge-light: rgba(255, 224, 182, 0.24);
+  --wood-edge-dark: rgba(16, 9, 4, 0.78);
+  --wood-back-tint: rgba(18, 11, 7, 0.68);
+  --wood-deck-tint: rgba(22, 13, 8, 0.36);
+  --wood-frame-tint: rgba(28, 15, 8, 0.22);
+  --wood-brass: #d4ad64;
+}
+
+.bookshelf-cabinet[data-theme="mahogany"] {
+  --wood-h: url("/textures/wood-mahogany-h.jpg");
+  --wood-v: url("/textures/wood-mahogany-v.jpg");
+  --wood-base: #522112;
+  --wood-edge-light: rgba(255, 212, 168, 0.26);
+  --wood-edge-dark: rgba(22, 6, 3, 0.8);
+  --wood-back-tint: rgba(26, 9, 5, 0.68);
+  --wood-deck-tint: rgba(34, 12, 6, 0.34);
+  --wood-frame-tint: rgba(34, 10, 4, 0.22);
+  --wood-brass: #dfba6f;
+}
+
+.bookshelf-cabinet[data-theme="oak"] {
+  --wood-h: url("/textures/wood-oak-h.jpg");
+  --wood-v: url("/textures/wood-oak-v.jpg");
+  --wood-base: #8a5e2f;
+  --wood-edge-light: rgba(255, 240, 206, 0.34);
+  --wood-edge-dark: rgba(42, 24, 8, 0.68);
+  --wood-back-tint: rgba(36, 22, 10, 0.62);
+  --wood-deck-tint: rgba(42, 26, 12, 0.26);
+  --wood-frame-tint: rgba(48, 28, 10, 0.14);
+  --wood-brass: #c59b4d;
+}
+
+.bookshelf-cabinet[data-theme="espresso"] {
+  --wood-h: url("/textures/wood-espresso-h.jpg");
+  --wood-v: url("/textures/wood-espresso-v.jpg");
+  --wood-base: #231914;
+  --wood-edge-light: rgba(240, 214, 182, 0.17);
+  --wood-edge-dark: rgba(6, 4, 2, 0.88);
+  --wood-back-tint: rgba(9, 7, 5, 0.72);
+  --wood-deck-tint: rgba(12, 9, 7, 0.42);
+  --wood-frame-tint: rgba(10, 7, 5, 0.26);
+  --wood-brass: #cfa85f;
+}
+
+/* Nordic Pale Birch (IKEA Billy / Scandinavian light timber) */
+.bookshelf-cabinet[data-theme="birch"] {
+  --wood-h: url("/textures/wood-oak-h.jpg");
+  --wood-v: url("/textures/wood-oak-v.jpg");
+  --wood-base: #e7dccb;
+  --wood-edge-light: rgba(255, 255, 255, 0.75);
+  --wood-edge-dark: rgba(96, 78, 56, 0.42);
+  --wood-back-tint: rgba(232, 223, 210, 0.78);
+  --wood-deck-tint: rgba(240, 232, 220, 0.62);
+  --wood-frame-tint: rgba(244, 238, 228, 0.68);
+  --wood-brass: #6c5e4e;
+}
+
+.bookshelf-cabinet[data-theme="birch"] .shelf-compartment {
+  background-color: #dfd5c6;
+  box-shadow:
+    inset 0 18px 24px -8px rgba(72, 56, 38, 0.34),
+    inset 14px 0 18px -10px rgba(72, 56, 38, 0.24),
+    inset -14px 0 18px -10px rgba(72, 56, 38, 0.24);
+}
+
+.bookshelf-cabinet[data-theme="birch"] .shelf-brass-plaque {
+  color: #362e26;
+  background: linear-gradient(180deg, #f5f1ea 0%, #e4ddd1 100%);
+  border: 1px solid rgba(90, 76, 60, 0.25);
+  box-shadow: 0 1px 2px rgba(60, 48, 34, 0.22);
+}
+
+/* Architectural Matte Charcoal (Modern minimalist black oak / steel) */
+.bookshelf-cabinet[data-theme="matte-charcoal"] {
+  --wood-h: url("/textures/wood-espresso-h.jpg");
+  --wood-v: url("/textures/wood-espresso-v.jpg");
+  --wood-base: #1b1d20;
+  --wood-edge-light: rgba(220, 228, 238, 0.14);
+  --wood-edge-dark: rgba(0, 0, 0, 0.92);
+  --wood-back-tint: rgba(14, 16, 19, 0.86);
+  --wood-deck-tint: rgba(18, 20, 24, 0.72);
+  --wood-frame-tint: rgba(22, 24, 28, 0.72);
+  --wood-brass: #b8bdc7;
+}
+
+.bookshelf-cabinet[data-theme="matte-charcoal"] .shelf-brass-plaque {
+  color: #e6e8ec;
+  background: linear-gradient(180deg, #2e3238 0%, #1d2024 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* ==========================================================================
+   ARCHITECTURAL ROOM & PAGE THEMES (Brand & Interior Inspired)
+   ========================================================================== */
+
+.library-room {
+  min-height: 100vh;
+  transition: background-color 360ms ease, color 360ms ease;
+}
+
+/* 1. Antique Study — Classic Dark Heritage Library */
+.library-room[data-room-theme="antique-study"] {
+  background-color: #14100d;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(168, 118, 62, 0.15) 0%, rgba(28, 21, 16, 0.45) 48%, rgba(14, 10, 8, 0.96) 100%),
+    radial-gradient(circle at 18% 72%, rgba(92, 58, 30, 0.08) 0%, transparent 55%),
+    radial-gradient(circle at 82% 72%, rgba(92, 58, 30, 0.08) 0%, transparent 55%);
+  color: #f3eadc;
+}
+
+/* 2. Nordic Minimal — IKEA Billy Sunlit Scandinavian Plaster */
+.library-room[data-room-theme="nordic-billy"] {
+  background-color: #f0ece4;
+  background-image:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.75) 0%, rgba(246, 242, 234, 0.25) 45%, rgba(220, 212, 198, 0.55) 100%),
+    radial-gradient(ellipse 75% 50% at 25% 0%, rgba(255, 252, 245, 0.9) 0%, transparent 65%);
+  color: #24201b;
+}
+
+.library-room[data-room-theme="nordic-billy"] .bookshelf-cabinet {
+  filter: drop-shadow(0 28px 42px rgba(48, 38, 26, 0.24));
+}
+
+/* 3. Zen Timber — Muji Japanese Washi Plaster & Shoji Daylight */
+.library-room[data-room-theme="muji-zen"] {
+  background-color: #e6ddd0;
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 249, 236, 0.65) 0%, transparent 68%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(120, 96, 68, 0.03) 0px,
+      rgba(120, 96, 68, 0.03) 1px,
+      transparent 1px,
+      transparent 160px
+    ),
+    linear-gradient(180deg, #ede5d8 0%, #ded3c2 100%);
+  color: #2a221a;
+}
+
+.library-room[data-room-theme="muji-zen"] .bookshelf-cabinet {
+  filter: drop-shadow(0 28px 42px rgba(54, 40, 24, 0.28));
+}
+
+/* 4. Botanical Apothecary — Aesop Moody Venetian Olive Plaster */
+.library-room[data-room-theme="aesop-apothecary"] {
+  background-color: #19211b;
+  background-image:
+    radial-gradient(ellipse 75% 52% at 50% 0%, rgba(196, 168, 108, 0.16) 0%, rgba(34, 46, 37, 0.5) 52%, rgba(16, 22, 18, 0.96) 100%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 245, 225, 0.018) 0px,
+      rgba(255, 245, 225, 0.018) 1px,
+      transparent 1px,
+      transparent 140px
+    );
+  color: #f0ebe0;
+}
+
+/* 5. Industrial Loft — Brooklyn Exposed Terracotta-Charcoal Brick */
+.library-room[data-room-theme="brooklyn-loft"] {
+  background-color: #191413;
+  background-image:
+    radial-gradient(ellipse 72% 48% at 50% 0%, rgba(232, 162, 102, 0.16) 0%, rgba(36, 24, 20, 0.35) 50%, rgba(16, 12, 11, 0.94) 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.24) 0px,
+      rgba(0, 0, 0, 0.24) 2px,
+      transparent 2px,
+      transparent 34px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(165, 92, 62, 0.06) 0px,
+      rgba(165, 92, 62, 0.06) 96px,
+      rgba(0, 0, 0, 0.22) 96px,
+      rgba(0, 0, 0, 0.22) 98px
+    );
+  color: #f4ebe2;
+}
+
+/* 6. Velvet Salon — Art Deco Midnight Peacock Paneling */
+.library-room[data-room-theme="art-deco-salon"] {
+  background-color: #0d1a1f;
+  background-image:
+    radial-gradient(ellipse 78% 55% at 50% 0%, rgba(226, 194, 120, 0.16) 0%, rgba(16, 38, 46, 0.45) 50%, rgba(9, 18, 22, 0.96) 100%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(226, 194, 120, 0.04) 0px,
+      rgba(226, 194, 120, 0.04) 1px,
+      transparent 1px,
+      transparent 180px
+    );
+  color: #f3ede0;
+}
+
+/* --- Gallery Wall & Ambient Lighting --- */
+.bookshelf-stage {
+  position: relative;
+  perspective: 1600px;
+}
+
+.bookshelf-sconce-glow {
+  pointer-events: none;
+  position: absolute;
+  top: -54px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92%, 860px);
+  height: 220px;
+  background: radial-gradient(
+    ellipse 62% 72% at 50% 8%,
+    rgba(255, 216, 148, 0.24) 0%,
+    rgba(244, 182, 96, 0.09) 45%,
+    rgba(255, 195, 115, 0) 76%
+  );
+  filter: blur(8px);
+  z-index: 25;
+}
+
+/* Brass Gallery Lamp Bar above Crown */
+.bookshelf-brass-lamp {
+  position: relative;
+  margin: 0 auto 10px;
+  width: 240px;
+  height: 11px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    #f0d494 0%,
+    #c69a49 38%,
+    #7e5b21 82%,
+    #4c3511 100%
+  );
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.75),
+    0 10px 36px 8px rgba(255, 206, 126, 0.28),
+    inset 0 1px 1px rgba(255, 248, 224, 0.75);
+}
+
+.bookshelf-brass-lamp::before,
+.bookshelf-brass-lamp::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  width: 10px;
+  height: 16px;
+  background: linear-gradient(90deg, #6b4d1c, #d5af63, #5e4318);
+  border-radius: 2px;
+  z-index: -1;
+}
+.bookshelf-brass-lamp::before {
+  left: 42px;
+}
+.bookshelf-brass-lamp::after {
+  right: 42px;
+}
+
+/* --- Outer Bookcase Frame --- */
+.bookshelf-cabinet {
+  position: relative;
+  width: 100%;
+  max-width: 1040px;
+  min-width: 720px;
+  margin: 0 auto;
+  filter: drop-shadow(0 38px 54px rgba(0, 0, 0, 0.78));
+}
+
+/* Stepped Antique Crown Cornice */
+.bookshelf-crown {
+  position: relative;
+  margin: 0 -18px;
+  z-index: 14;
+}
+
+.bookshelf-crown-cap {
+  height: 17px;
+  border-radius: 3px 3px 1px 1px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 234, 198, 0.24) 0%,
+      rgba(255, 220, 175, 0.08) 22%,
+      var(--wood-frame-tint) 58%,
+      rgba(0, 0, 0, 0.48) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 480px auto;
+  box-shadow:
+    inset 0 1px 0 var(--wood-edge-light),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.65),
+    0 6px 14px rgba(0, 0, 0, 0.55);
+}
+
+.bookshelf-crown-cove {
+  margin: 0 10px;
+  height: 13px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.56) 0%,
+      rgba(255, 220, 170, 0.1) 46%,
+      rgba(0, 0, 0, 0.35) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 460px auto;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.65),
+    inset 0 -1px 0 rgba(255, 225, 185, 0.16);
+}
+
+.bookshelf-crown-frieze {
+  margin: 0 18px;
+  height: 20px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 228, 190, 0.12) 0%,
+      var(--wood-frame-tint) 45%,
+      rgba(0, 0, 0, 0.56) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 480px auto;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 184, 0.14),
+    0 12px 22px rgba(0, 0, 0, 0.72);
+}
+
+/* Main Bookcase Body (Side Pilasters + Shelving Interior) */
+.bookshelf-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  background-color: #120b07;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.65),
+    0 18px 34px rgba(0, 0, 0, 0.62);
+}
+
+/* Solid Vertical Side Pilasters with Vertical Grain & Subtle Fluting */
+.bookshelf-stile {
+  position: relative;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.42) 0%,
+      rgba(255, 228, 186, 0.14) 16%,
+      var(--wood-frame-tint) 42%,
+      rgba(0, 0, 0, 0.2) 52%,
+      rgba(255, 228, 186, 0.08) 64%,
+      var(--wood-frame-tint) 82%,
+      rgba(0, 0, 0, 0.58) 100%
+    ),
+    var(--wood-v);
+  background-size: 100% 100%, auto 520px;
+  z-index: 10;
+}
+
+.bookshelf-stile-left {
+  box-shadow:
+    inset 1px 0 0 var(--wood-edge-light),
+    inset -2px 0 4px rgba(0, 0, 0, 0.7),
+    6px 0 16px rgba(0, 0, 0, 0.55);
+}
+
+.bookshelf-stile-right {
+  box-shadow:
+    inset -1px 0 0 rgba(0, 0, 0, 0.5),
+    inset 2px 0 4px rgba(0, 0, 0, 0.68),
+    -6px 0 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Subtle decorative vertical flute channels on pilasters */
+.bookshelf-stile::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 9px;
+  right: 9px;
+  border-left: 1px solid rgba(0, 0, 0, 0.42);
+  border-right: 1px solid rgba(255, 225, 180, 0.12);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.2) 0%,
+    transparent 35%,
+    rgba(255, 226, 182, 0.05) 55%,
+    rgba(0, 0, 0, 0.18) 100%
+  );
+  pointer-events: none;
+}
+
+/* Shelving Stack */
+.bookshelf-interior {
+  display: flex;
+  flex-direction: column;
+  background-color: #140d09;
+}
+
+/* Individual Horizontal Shelf Level */
+.shelf-level-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Recessed Compartment Cavity */
+.shelf-compartment {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: visible;
+  background-color: #1b110b;
+  /* Darkened recessed vertical beadboard / wood back panel */
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.68) 0%,
+      rgba(0, 0, 0, 0.24) 24%,
+      rgba(0, 0, 0, 0.14) 68%,
+      rgba(0, 0, 0, 0.46) 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.36) 0px,
+      rgba(0, 0, 0, 0.36) 1px,
+      rgba(255, 224, 184, 0.04) 2px,
+      transparent 3px,
+      transparent 84px
+    ),
+    linear-gradient(var(--wood-back-tint), var(--wood-back-tint)),
+    var(--wood-v);
+  background-size: 100% 100%, 84px 100%, 100% 100%, auto 460px;
+  /* Deep cabinet recess ambient occlusion */
+  box-shadow:
+    inset 0 22px 28px -6px rgba(0, 0, 0, 0.82),
+    inset 18px 0 22px -10px rgba(0, 0, 0, 0.72),
+    inset -18px 0 22px -10px rgba(0, 0, 0, 0.72);
+  transition: box-shadow 180ms ease;
+}
+
+.shelf-compartment[data-drop-active="true"] {
+  box-shadow:
+    inset 0 22px 28px -6px rgba(0, 0, 0, 0.82),
+    inset 18px 0 22px -10px rgba(0, 0, 0, 0.72),
+    inset -18px 0 22px -10px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 2px rgba(226, 184, 106, 0.62);
+}
+
+.shelf-compartment[data-drop-invalid="true"] {
+  box-shadow:
+    inset 0 22px 28px -6px rgba(0, 0, 0, 0.82),
+    inset 0 0 0 2px rgba(220, 82, 68, 0.72);
+}
+
+/* Inner Cabinet Side Return Walls (3D recessed cheek illusion) */
+.shelf-compartment::before,
+.shelf-compartment::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 14px;
+  width: 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.shelf-compartment::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.54) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.shelf-compartment::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0.54) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* Recessed Horizontal Shelf Deck Top Surface (visible under & behind books) */
+.shelf-deck-surface {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.68) 0%,
+      var(--wood-deck-tint) 48%,
+      rgba(255, 224, 184, 0.14) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 420px auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Books Row Sitting Firmly on the Shelf Deck */
+.shelf-books-row {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 18px 14px 6px 14px;
+  min-height: 100%;
+  width: 100%;
+}
+
+/* Vertical Wood Compartment Divider (Mullion) */
+.shelf-divider-mullion {
+  position: relative;
+  flex: 0 0 20px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.58) 0%,
+      rgba(255, 225, 182, 0.18) 18%,
+      var(--wood-frame-tint) 48%,
+      rgba(0, 0, 0, 0.28) 82%,
+      rgba(0, 0, 0, 0.65) 100%
+    ),
+    var(--wood-v);
+  background-size: 100% 100%, auto 460px;
+  box-shadow:
+    inset 1px 0 0 var(--wood-edge-light),
+    inset -1px 0 0 rgba(0, 0, 0, 0.62),
+    -4px 0 12px rgba(0, 0, 0, 0.45),
+    4px 0 12px rgba(0, 0, 0, 0.45);
+  z-index: 8;
+}
+
+/* Thick Horizontal Shelf Plank Front Fascia */
+.shelf-plank-fascia {
+  position: relative;
+  height: 24px;
+  width: 100%;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      var(--wood-edge-light) 0%,
+      rgba(255, 228, 188, 0.08) 14%,
+      var(--wood-frame-tint) 46%,
+      rgba(0, 0, 0, 0.34) 84%,
+      var(--wood-edge-dark) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 480px auto;
+  box-shadow:
+    inset 0 1px 0 var(--wood-edge-light),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.75),
+    0 11px 18px -2px rgba(0, 0, 0, 0.78);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+}
+
+/* Engraved Antique Brass Compartment Nameplate (on shelf fascia) */
+.shelf-brass-plaque {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #2c1e0c;
+  padding: 1px 10px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    #e8cd8b 0%,
+    #c69e50 48%,
+    #9f7831 100%
+  );
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 248, 224, 0.65),
+    inset 0 -1px 0 rgba(70, 44, 12, 0.55);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stepped Baseboard Plinth */
+.bookshelf-plinth {
+  position: relative;
+  margin: 0 -10px;
+  z-index: 12;
+}
+
+.bookshelf-plinth-trim {
+  margin: 0 6px;
+  height: 11px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 226, 186, 0.2) 0%,
+      var(--wood-frame-tint) 50%,
+      rgba(0, 0, 0, 0.54) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 480px auto;
+  box-shadow: inset 0 1px 0 var(--wood-edge-light);
+}
+
+.bookshelf-plinth-base {
+  height: 30px;
+  border-radius: 1px 1px 4px 4px;
+  background-color: var(--wood-base);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 224, 180, 0.1) 0%,
+      var(--wood-frame-tint) 38%,
+      rgba(0, 0, 0, 0.64) 100%
+    ),
+    var(--wood-h);
+  background-size: 100% 100%, 480px auto;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 186, 0.14),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.78),
+    0 16px 32px rgba(0, 0, 0, 0.85);
+}
+
+/* ==========================================================================
+   PHYSICAL 3D BOOK SPINE RENDERING
+   ========================================================================== */
+
+.book-slot {
+  position: relative;
+  flex: 0 0 auto;
+  transform-origin: bottom center;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 220ms ease;
+  will-change: transform;
+}
+
+/* Grounded Contact Shadow Directly Underneath Each Book on the Shelf Deck */
+.book-slot::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  right: -4px;
+  bottom: -4px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.42) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.book-slot:hover,
+.book-slot:focus-within {
+  z-index: 30;
+}
+
+.book-slot:hover .book-spine-button,
+.book-slot:focus-within .book-spine-button {
+  transform: translateY(-10px) scale(1.018);
+  filter: brightness(1.08);
+}
+
+.book-slot:hover::after,
+.book-slot:focus-within::after {
+  opacity: 0.45;
+  transform: scaleX(0.9);
+}
+
+.book-slot[data-dragging="true"] {
+  opacity: 0.25;
+}
+
+.book-slot[data-arriving="true"] {
+  animation: book-arrive 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes book-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(-34px) scale(0.94);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.book-spine-button {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  padding: 0;
+  cursor: grab;
+  overflow: hidden;
+  border-radius: 3px 3px 1.5px 1.5px;
+  transform-origin: bottom center;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease,
+    filter 220ms ease;
+  /* Physical inter-book shadow + subtle depth thickness */
+  box-shadow:
+    -2px 0 5px rgba(0, 0, 0, 0.48),
+    3px 2px 8px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.42);
+  user-select: none;
+  -webkit-user-select: none;
+  text-align: center;
+}
+
+.book-spine-button:active {
+  cursor: grabbing;
+}
+
+.book-spine-button:focus-visible {
+  outline: 2px solid #e6c27a;
+  outline-offset: 2px;
+}
+
+/* Paperback gets sharper square-back corners & thinner cover lip */
+.book-spine-button[data-binding="paperback"] {
+  border-radius: 1.5px 1.5px 1px 1px;
+}
+
+/* Cylindrical 3D Spine Curvature Lighting Overlay */
+.book-spine-lighting {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 240, 210, 0.14) 0%,
+      rgba(255, 255, 255, 0.02) 18%,
+      rgba(0, 0, 0, 0.04) 72%,
+      rgba(0, 0, 0, 0.34) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.44) 0%,
+      rgba(255, 255, 255, 0.2) 14%,
+      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0) 48%,
+      rgba(0, 0, 0, 0.1) 68%,
+      rgba(0, 0, 0, 0.28) 86%,
+      rgba(0, 0, 0, 0.54) 100%
+    );
+}
+
+/* Hardcover French Joint Hinge Grooves (left & right vertical indentation lines) */
+.book-hinge-grooves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 3px,
+      rgba(0, 0, 0, 0.42) 3.5px,
+      rgba(255, 255, 255, 0.14) 4.5px,
+      transparent 5.5px,
+      transparent calc(100% - 5.5px),
+      rgba(255, 255, 255, 0.1) calc(100% - 4.5px),
+      rgba(0, 0, 0, 0.45) calc(100% - 3.5px),
+      transparent calc(100% - 3px)
+    );
+}
+
+/* Paperback subtle vertical reading crease */
+.book-paperback-crease {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.3), rgba(255, 255, 255, 0.14));
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Material Texture Layers */
+.book-texture-linen {
+  position: absolute;
+  inset: 0;
+  background-image: url("/textures/book-linen.jpg");
+  background-size: 120px 120px;
+  mix-blend-mode: overlay;
+  opacity: 0.36;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.book-texture-leather {
+  position: absolute;
+  inset: 0;
+  background-image: url("/textures/book-leather.jpg");
+  background-size: 130px 130px;
+  mix-blend-mode: soft-light;
+  opacity: 0.56;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.book-texture-dustjacket {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.02) 32%,
+    rgba(255, 255, 255, 0.1) 52%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top Stitched Headband & Cream Page Block Peek for Hardcovers */
+.book-headband-cap {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  right: 2px;
+  height: 3.5px;
+  z-index: 6;
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* Raised Leather Binding Ribs / Hubs */
+.book-raised-rib {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5px;
+  z-index: 5;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 240, 210, 0.24) 0%,
+    rgba(255, 255, 255, 0.05) 35%,
+    rgba(0, 0, 0, 0.36) 75%,
+    rgba(0, 0, 0, 0.58) 100%
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* Spine Vertical Typography */
+.book-spine-text-wrap {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 13px 3px 11px;
+  pointer-events: none;
+}
+
+.book-spine-vertical-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-height: 100%;
+  line-height: 1.08;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.32);
+}
+
+.book-spine-vertical-title[data-light-bg="true"] {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* ==========================================================================
+   3D BOOK PULL-OUT & COVER REVEAL STAGE (Modal)
+   ========================================================================== */
+
+.book-3d-scene {
+  perspective: 1400px;
+  width: 240px;
+  height: 344px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-3d-object {
+  position: relative;
+  transform-style: preserve-3d;
+  width: 218px;
+  height: 324px;
+  transform: rotateY(-24deg) rotateX(4deg);
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: book-pullout-turn 680ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.book-3d-object[data-view="spine"] {
+  transform: rotateY(82deg) rotateX(2deg);
+}
+
+.book-3d-object:hover {
+  transform: rotateY(-12deg) rotateX(2deg) translateZ(8px);
+}
+
+.book-3d-object[data-view="spine"]:hover {
+  transform: rotateY(88deg) rotateX(1deg) translateZ(8px);
+}
+
+@keyframes book-pullout-turn {
+  0% {
+    opacity: 0.3;
+    transform: translateZ(-120px) rotateY(84deg) rotateX(0deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translateZ(20px) rotateY(22deg) rotateX(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateZ(0) rotateY(-24deg) rotateX(4deg);
+  }
+}
+
+.book-3d-front {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px 6px 6px 2px;
+  overflow: hidden;
+  transform: translateZ(18px);
+  box-shadow:
+    inset 4px 0 10px rgba(0, 0, 0, 0.28),
+    inset -1px 0 1px rgba(255, 255, 255, 0.24),
+    18px 24px 40px rgba(0, 0, 0, 0.65);
+  backface-visibility: hidden;
+}
+
+.book-3d-spine-face {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 36px;
+  transform: rotateY(-90deg) translateZ(18px);
+  border-radius: 3px 0 0 3px;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.42);
+}
+
+.book-3d-pages-right {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 34px;
+  transform: rotateY(90deg) translateZ(199px);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #f2e9d6 0px,
+      #e6dac0 1px,
+      #f6efdf 2px,
+      #dfd2b5 3px
+    );
+  box-shadow:
+    inset 0 6px 8px rgba(0, 0, 0, 0.2),
+    inset 0 -6px 8px rgba(0, 0, 0, 0.2);
+}
+
+.book-3d-pages-top {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  right: 4px;
+  height: 34px;
+  transform: rotateX(90deg) translateZ(14px);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #efe5d0 0px,
+      #e1d4b8 1px,
+      #f5eedc 2px
+    );
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.22);
+}
+
+.book-3d-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px 2px 2px 6px;
+  transform: rotateY(180deg) translateZ(18px);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Reduced Motion Respect */
+@media (prefers-reduced-motion: reduce) {
+  .book-slot,
+  .book-spine-button,
+  .book-3d-object {
+    transition: none !important;
+    animation: none !important;
+  }
+  .book-slot:hover .book-spine-button,
+  .book-slot:focus-within .book-spine-button {
+    transform: translateY(-4px);
+  }
+}
+
+/* Custom warm dark scrollbars for narrow screens & drawers */
+.library-scroll::-webkit-scrollbar {
+  height: 10px;
+  width: 8px;
+}
+
+.library-scroll::-webkit-scrollbar-track {
+  background: rgba(18, 12, 8, 0.8);
+  border-radius: 999px;
+}
+
+.library-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 124, 68, 0.45);
+  border-radius: 999px;
+  border: 2px solid rgba(18, 12, 8, 0.8);
+}
+
+.library-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(206, 158, 92, 0.72);
+}
+
+/* ==========================================================================
+   MODERN / ARCHITECTURAL CABINET SILHOUETTE (IKEA Billy, Muji, Loft)
+   ========================================================================== */
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-crown {
+  margin: 0;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-crown-cap {
+  height: 16px;
+  border-radius: 3px 3px 0 0;
+  box-shadow:
+    inset 0 1px 0 var(--wood-edge-light),
+    inset 0 -2px 4px var(--wood-edge-dark);
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-crown-cove,
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-crown-frieze {
+  display: none;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-body {
+  grid-template-columns: 20px 1fr 20px;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-stile::after {
+  display: none;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .shelf-plank-fascia {
+  height: 18px;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .shelf-divider-mullion {
+  flex: 0 0 14px;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-plinth {
+  margin: 0;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-plinth-trim {
+  display: none;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-plinth-base {
+  height: 22px;
+  border-radius: 0 0 3px 3px;
+}
+
+.bookshelf-cabinet[data-cabinet-style="modern"] .shelf-brass-plaque {
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  font-size: 9px;
+  padding: 1px 9px;
+  border-radius: 3px;
+}
+
+/* ==========================================================================
+   SILK BOOKMARK RIBBON (Currently Reading Indicator on Book Spines)
+   ========================================================================== */
+.book-bookmark-ribbon {
+  pointer-events: none;
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9px;
+  height: 24px;
+  z-index: 15;
+  background: linear-gradient(180deg, #b82936 0%, #8f1924 65%, #71121b 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.book-bookmark-ribbon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 45%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+}
+
+/* ==========================================================================
+   SEMANTIC OVERLAY SURFACE TOKENS (Adapts Modals & Drawers to Room Mode)
+   ========================================================================== */
+.library-room {
+  --ui-panel: #1a130e;
+  --ui-panel-header: #140e0a;
+  --ui-panel-elevated: #211812;
+  --ui-panel-input: #110c09;
+  --ui-panel-border: rgba(201, 161, 92, 0.24);
+  --ui-panel-divider: rgba(201, 161, 92, 0.14);
+  --ui-text-primary: #f6ead7;
+  --ui-text-secondary: #cbb698;
+  --ui-text-muted: #98846c;
+  --ui-hover: #281d15;
+}
+
+.library-room[data-room-mode="light"] {
+  --ui-panel: #fbf8f3;
+  --ui-panel-header: #f3ede3;
+  --ui-panel-elevated: #ffffff;
+  --ui-panel-input: #ffffff;
+  --ui-panel-border: rgba(132, 110, 82, 0.28);
+  --ui-panel-divider: rgba(132, 110, 82, 0.16);
+  --ui-text-primary: #231d17;
+  --ui-text-secondary: #534638;
+  --ui-text-muted: #7c6d5c;
+  --ui-hover: #efe7da;
+}
+
+.library-room[data-room-mode="light"] .library-scroll::-webkit-scrollbar-track {
+  background: rgba(226, 217, 202, 0.65);
+}
+
+.library-room[data-room-mode="light"] .library-scroll::-webkit-scrollbar-thumb {
+  background: rgba(140, 116, 86, 0.45);
+  border-color: rgba(226, 217, 202, 0.65);
+}
+
+.ui-surface-panel {
+  background-color: var(--ui-panel);
+  color: var(--ui-text-primary);
+  border-color: var(--ui-panel-border);
+}
+
+.ui-surface-header {
+  background-color: var(--ui-panel-header);
+  border-color: var(--ui-panel-divider);
+}
+
+.ui-surface-card {
+  background-color: var(--ui-panel-elevated);
+  border-color: var(--ui-panel-divider);
+}
+
+.ui-surface-input {
+  background-color: var(--ui-panel-input);
+  color: var(--ui-text-primary);
+  border-color: var(--ui-panel-border);
+}
+
+.ui-text-primary {
+  color: var(--ui-text-primary);
+}
+
+.ui-text-secondary {
+  color: var(--ui-text-secondary);
+}
+
+.ui-text-muted {
+  color: var(--ui-text-muted);
+}
