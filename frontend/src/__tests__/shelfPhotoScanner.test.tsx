@@ -7,7 +7,7 @@ import {
   type ShelfScanResponse,
 } from '@bookshelf/shared';
 import { BookSearchModal } from '../components/search/BookSearchModal';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 
 vi.mock('../utils/extractCoverPalette', () => ({
   extractCoverPaletteFromUrl: vi.fn().mockResolvedValue(null),
@@ -56,8 +56,8 @@ function makeTestBookshelf(): BookshelfDto {
             book: {
               id: 'book-existing',
               provider: 'google_books',
-              providerBookId: 'gb-existing-dune',
-              isbn: '9780441172719',
+              providerBookId: 'gb-other-id',
+              isbn: '0441172717',
               title: 'Dune',
               authors: ['Frank Herbert'],
               publisher: 'Ace',
@@ -98,11 +98,11 @@ describe('<BookSearchModal /> Scan Photo tab', () => {
     }
   });
 
-  it('analyzes a shelf photo, marks duplicates as In Library, and shelves selected books', async () => {
+  it('keeps scan review through shelf refreshes and retries only unsaved books', async () => {
     const mockScanResponse: ShelfScanResponse = {
       model: 'gemini-3.5-flash-lite',
       cached: false,
-      detectedCount: 2,
+      detectedCount: 3,
       matchedCount: 2,
       books: [
         {
@@ -119,8 +119,8 @@ describe('<BookSearchModal /> Scan Photo tab', () => {
             {
               id: 'google_books:gb-existing-dune',
               provider: 'google_books',
-              providerBookId: 'gb-existing-dune',
-              isbn: '9780441172719',
+              providerBookId: 'gb-other-id',
+              isbn: '0441172717',
               title: 'Dune',
               subtitle: null,
               authors: ['Frank Herbert'],
@@ -140,8 +140,20 @@ describe('<BookSearchModal /> Scan Photo tab', () => {
           ],
         },
         {
-          scanId: 'scan-2',
+          scanId: 'scan-3',
           shelfRow: 1,
+          position: 2,
+          detectedTitle: 'Dune',
+          detectedAuthor: 'Another Author',
+          language: 'en',
+          spineColorHex: null,
+          confidence: 'medium',
+          matchStatus: 'unmatched',
+          matches: [],
+        },
+        {
+          scanId: 'scan-2',
+          shelfRow: 2,
           position: 2,
           detectedTitle: 'The Left Hand of Darkness',
           detectedAuthor: 'Ursula K. Le Guin',
@@ -182,19 +194,36 @@ describe('<BookSearchModal /> Scan Photo tab', () => {
     });
     vi.spyOn(api, 'scanShelfPhoto').mockResolvedValue(mockScanResponse);
 
-    const onAddBook = vi.fn().mockResolvedValue({});
+    const onSave = vi.fn()
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new ApiError(409, 'SHELF_FULL', 'Shelf is full'))
+      .mockResolvedValue({});
     const onToast = vi.fn();
     const onClose = vi.fn();
 
-    render(
-      <BookSearchModal
-        open
-        onClose={onClose}
-        bookshelf={makeTestBookshelf()}
-        onAddBook={onAddBook}
-        onToast={onToast}
-      />
-    );
+    function TestLibrary() {
+      const [bookshelf, setBookshelf] = React.useState(() => {
+        const shelf = makeTestBookshelf();
+        shelf.compartments.push(
+          { ...shelf.compartments[0], id: 'comp-2', row: 1, books: [] },
+          { ...shelf.compartments[0], id: 'comp-3', row: 2, books: [] }
+        );
+        return shelf;
+      });
+      return (
+        <BookSearchModal
+          open
+          onClose={onClose}
+          bookshelf={bookshelf}
+          onAddBook={async (payload) => {
+            await onSave(payload);
+            setBookshelf((prev) => structuredClone(prev));
+          }}
+          onToast={onToast}
+        />
+      );
+    }
+    render(<TestLibrary />);
 
     // Switch to Scan Photo tab
     fireEvent.click(screen.getByTestId('scan-photo-tab-btn'));
@@ -208,27 +237,33 @@ describe('<BookSearchModal /> Scan Photo tab', () => {
     const analyzeBtn = await screen.findByTestId('analyze-shelf-btn');
     fireEvent.click(analyzeBtn);
 
-    // Review list should render both books; Dune is already in library so only 1 is selected by default
     await screen.findByTestId('scanned-books-list');
-    expect(screen.getByText('In Library')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { level: 4, name: 'The Left Hand of Darkness' })
-    ).toBeInTheDocument();
+    expect(screen.getByText('Owned edition')).toBeInTheDocument();
+    expect(screen.getByText('Possible match')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Keep photo layout'));
+    expect(screen.getByLabelText('Photo row 1')).toHaveValue('comp-1');
+    expect(screen.getByLabelText('Photo row 2')).toHaveValue('comp-2');
 
     const shelveBtn = screen.getByTestId('shelve-scanned-books-btn');
-    expect(shelveBtn).toHaveTextContent('Shelve 1 Book');
-
+    expect(shelveBtn).toHaveTextContent('Shelve 2 Books');
     fireEvent.click(shelveBtn);
 
-    await waitFor(() => {
-      expect(onAddBook).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Shelved', { exact: true })).toBeInTheDocument();
+    expect(screen.getByText(/This book does not fit/)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onSave.mock.calls.map(([input]) => [input.compartmentId, input.book.title])).toEqual([
+      ['comp-1', 'Dune'],
+      ['comp-2', 'The Left Hand of Darkness'],
+    ]);
+
+    fireEvent.change(screen.getByLabelText('Photo row 2'), { target: { value: 'comp-3' } });
+    fireEvent.click(shelveBtn);
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onSave).toHaveBeenCalledTimes(3);
+    expect(onSave.mock.lastCall?.[0]).toMatchObject({
+      compartmentId: 'comp-3',
+      book: { title: 'The Left Hand of Darkness' },
     });
-    expect(onAddBook.mock.calls[0][0].book.title).toBe('The Left Hand of Darkness');
-    expect(onAddBook.mock.calls[0][1]).toEqual({ silent: true });
-    expect(onToast).toHaveBeenCalledWith(
-      expect.stringContaining('Shelved 1 book'),
-      'success'
-    );
-    expect(onClose).toHaveBeenCalled();
   });
 });

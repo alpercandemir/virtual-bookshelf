@@ -11,7 +11,6 @@ import {
   Loader2,
   Plus,
   Search,
-  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
@@ -26,6 +25,7 @@ import {
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
+import { getOwnership, indexOwnedBooks } from '../../utils/ownedBooks';
 import { ShelfPhotoScanner } from './ShelfPhotoScanner';
 
 interface BookSearchModalProps {
@@ -52,13 +52,13 @@ const SEARCH_MODES: Array<{ value: 'all' | 'title' | 'author' | 'isbn'; label: s
 function ResultCard({
   item,
   adding,
-  alreadyInLibrary,
+  ownedKeys,
   justShelved,
   onSelectAdd,
 }: {
   item: SearchBookResult;
   adding: boolean;
-  alreadyInLibrary: boolean;
+  ownedKeys: Set<string>;
   justShelved: boolean;
   onSelectAdd: (item: SearchBookResult, edition?: SearchEditionSummary) => void;
 }) {
@@ -75,7 +75,10 @@ function ResultCard({
   const proxiedCover = getProxiedCoverUrl(previewCoverUrl);
   const displayPublisher = activeEdition?.publisher ?? item.publisher;
   const displayDate = activeEdition?.publicationDate ?? item.publicationDate;
-  const displayIsbn = activeEdition?.isbn ?? item.isbn;
+  const displayIsbn = activeEdition ? activeEdition.isbn : item.isbn;
+  const ownership = getOwnership(
+    ownedKeys, item.title, activeEdition ? { ...activeEdition, title: item.title } : item
+  );
   const displayPages = activeEdition?.pageCount ?? item.pageCount;
 
   const fallbackAppearance = resolveSpineAppearance({
@@ -168,9 +171,9 @@ function ResultCard({
               <span className="text-[10px] uppercase tracking-wider ui-text-muted truncate">
                 {item.provider === 'google_books' ? 'Google Books' : 'Open Library'}
               </span>
-              {alreadyInLibrary && !justShelved && (
+              {ownership && !justShelved && (
                 <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 px-1.5 py-0.2 text-[9px] font-medium text-amber-500 shrink-0">
-                  In Library
+                  {ownership === 'owned' ? 'Owned edition' : 'Possible match'}
                 </span>
               )}
             </div>
@@ -239,27 +242,19 @@ export function BookSearchModal({
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
-  const ownedKeys = useMemo(() => {
-    const keys = new Set<string>();
-    const shelves = allBookshelves?.length ? allBookshelves : [bookshelf];
-    for (const s of shelves) {
-      for (const c of s.compartments) {
-        for (const sb of c.books) {
-          if (sb.book.isbn) keys.add(`isbn:${sb.book.isbn.replace(/[^0-9X]/gi, '')}`);
-          if (sb.book.providerBookId) keys.add(`pid:${sb.book.providerBookId}`);
-          keys.add(`title:${sb.book.title.trim().toLowerCase()}`);
-        }
-      }
-    }
-    return keys;
-  }, [allBookshelves, bookshelf]);
+  const ownedKeys = useMemo(
+    () => indexOwnedBooks(allBookshelves?.length ? allBookshelves : [bookshelf]),
+    [allBookshelves, bookshelf]
+  );
+  const firstCompartmentId = bookshelf.compartments[0]?.id ?? '';
+  const [scanSaving, setScanSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setActiveTab(initialTab);
       setShelvedIds(new Set());
       setTargetCompartmentId(
-        initialCompartmentId || bookshelf.compartments[0]?.id || ''
+        initialCompartmentId || firstCompartmentId
       );
       setManualTitle('');
       setAuthorsText('');
@@ -273,16 +268,16 @@ export function BookSearchModal({
       setUploadedCoverUrl(null);
       setManualError(null);
     }
-  }, [open, initialTab, initialCompartmentId, bookshelf.compartments]);
+  }, [open, initialTab, initialCompartmentId, firstCompartmentId, bookshelf.id]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !scanSaving) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, scanSaving]);
 
   if (!open) return null;
 
@@ -356,7 +351,7 @@ export function BookSearchModal({
         book: {
           provider: edition?.provider ?? item.provider,
           providerBookId: edition?.providerBookId ?? item.providerBookId,
-          isbn: edition?.isbn ?? item.isbn,
+          isbn: edition ? edition.isbn : item.isbn,
           title: item.title,
           subtitle: item.subtitle,
           authors: item.authors,
@@ -445,7 +440,7 @@ export function BookSearchModal({
       aria-modal="true"
       aria-label="Add Book to Bookshelf"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !scanSaving) onClose();
       }}
     >
       <div
@@ -471,6 +466,7 @@ export function BookSearchModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={scanSaving}
               aria-label="Close add book dialog"
               className="p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
             >
@@ -484,6 +480,7 @@ export function BookSearchModal({
               <button
                 type="button"
                 onClick={() => setActiveTab('search')}
+                disabled={scanSaving}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
                   activeTab === 'search'
                     ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
@@ -512,6 +509,7 @@ export function BookSearchModal({
                 <button
                   type="button"
                   onClick={() => switchToManual()}
+                  disabled={scanSaving}
                   title="If you couldn't find the book in search, you can add it manually here"
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
                     activeTab === 'manual'
@@ -538,6 +536,7 @@ export function BookSearchModal({
               <span className="shrink-0">Place on:</span>
               <select
                 value={targetCompartmentId}
+                disabled={scanSaving}
                 onChange={(e) => setTargetCompartmentId(e.target.value)}
                 className="flex-1 sm:flex-none rounded-md ui-surface-input border px-2.5 py-1.5 sm:py-1 text-base sm:text-xs"
               >
@@ -686,45 +685,22 @@ export function BookSearchModal({
 
               {!loading && response && response.items.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {response.items.map((item) => {
-                    const isOwned =
-                      ownedKeys.has(`pid:${item.providerBookId}`) ||
-                      (item.isbn
-                        ? ownedKeys.has(`isbn:${item.isbn.replace(/[^0-9X]/gi, '')}`)
-                        : false) ||
-                      ownedKeys.has(`title:${item.title.trim().toLowerCase()}`);
-                    return (
-                      <ResultCard
-                        key={item.id}
-                        item={item}
-                        adding={addingId === item.id}
-                        alreadyInLibrary={isOwned}
-                        justShelved={shelvedIds.has(item.id)}
-                        onSelectAdd={handleAddResult}
-                      />
-                    );
-                  })}
+                  {response.items.map((item) => (
+                    <ResultCard
+                      key={item.id}
+                      item={item}
+                      adding={addingId === item.id}
+                      ownedKeys={ownedKeys}
+                      justShelved={shelvedIds.has(item.id)}
+                      onSelectAdd={handleAddResult}
+                    />
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Highlighted Footer Callout for Manual Entry + Pagination */}
-            <div className="px-4 sm:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ui-surface-header flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
-              <button
-                type="button"
-                onClick={() => switchToManual(query)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#cfa458]/35 bg-[#cfa458]/12 hover:bg-[#cfa458]/20 px-3 py-1.5 text-xs transition cursor-pointer text-left"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#c89d54] shrink-0" />
-                <span className="ui-text-secondary">
-                  Couldn&apos;t find the book in search?{' '}
-                  <strong className="text-[#c89d54] underline underline-offset-2">
-                    Add via Manual Entry
-                  </strong>
-                </span>
-              </button>
-
-              {response && (response.page > 1 || response.hasMore) && (
+            {response && (response.page > 1 || response.hasMore) && (
+              <div className="px-4 sm:px-6 py-3 border-t ui-surface-header flex justify-end">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -748,8 +724,8 @@ export function BookSearchModal({
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </>
         ) : activeTab === 'scan' ? (
           <ShelfPhotoScanner
@@ -759,6 +735,7 @@ export function BookSearchModal({
             onAddBook={onAddBook}
             onToast={onToast}
             onComplete={onClose}
+            onSavingChange={setScanSaving}
           />
         ) : (
           /* Integrated Manual Entry Tab */

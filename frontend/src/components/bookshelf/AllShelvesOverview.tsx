@@ -23,6 +23,7 @@ import {
   BookOpen,
   GripVertical,
   Plus,
+  Share2,
   SlidersHorizontal,
   Tag,
   Trash2,
@@ -39,6 +40,7 @@ interface AllShelvesOverviewProps {
   activeBookshelfId: string | null;
   isLightRoom: boolean;
   onOpenShelf: (bookshelfId: string) => void;
+  onShareShelf: (shelf: BookshelfDto) => void;
   onCustomizeShelf: (bookshelfId: string) => void;
   onCreateShelf: () => void;
   onReorderShelves: (orderedIds: string[]) => Promise<void>;
@@ -166,6 +168,7 @@ interface SortableShelfCardProps {
   busy: boolean;
   confirmingDelete: boolean;
   onOpen: () => void;
+  onShare: () => void;
   onCustomize: () => void;
   onMove: (direction: -1 | 1) => void;
   onRequestDelete: () => void;
@@ -182,6 +185,7 @@ function SortableShelfCard({
   busy,
   confirmingDelete,
   onOpen,
+  onShare,
   onCustomize,
   onMove,
   onRequestDelete,
@@ -381,6 +385,16 @@ function SortableShelfCard({
                   Theme &amp; Layout
                 </button>
 
+                <button
+                  type="button"
+                  aria-label={`Share ${shelf.name}`}
+                  title="Share shelf"
+                  onClick={onShare}
+                  className="p-1.5 rounded-md border ui-surface-input ui-text-secondary cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
+
                 {totalShelves > 1 && (
                   <button
                     type="button"
@@ -406,6 +420,7 @@ export function AllShelvesOverview({
   activeBookshelfId,
   isLightRoom,
   onOpenShelf,
+  onShareShelf,
   onCustomizeShelf,
   onCreateShelf,
   onReorderShelves,
@@ -511,6 +526,7 @@ export function AllShelvesOverview({
                 busy={busyId === shelf.id}
                 confirmingDelete={confirmDeleteId === shelf.id}
                 onOpen={() => onOpenShelf(shelf.id)}
+                onShare={() => onShareShelf(shelf)}
                 onCustomize={() => onCustomizeShelf(shelf.id)}
                 onMove={(dir) => handleMove(idx, dir)}
                 onRequestDelete={() => setConfirmDeleteId(shelf.id)}

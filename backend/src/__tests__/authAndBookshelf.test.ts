@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import type { BookshelfDto } from '@bookshelf/shared';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 
@@ -17,10 +18,13 @@ function extractCookie(setCookieHeader: string | string[] | undefined): string {
 describe('Phase 1: Authentication & Bookshelf Foundation', () => {
   let dbPath: string;
   let prisma: PrismaClient;
+  let uploadsDir: string;
+  const previousUploadsDir = process.env.UPLOADS_DIR;
   let app: FastifyInstance;
 
   beforeAll(async () => {
     dbPath = path.join(os.tmpdir(), `bookshelf-test-${Date.now()}.db`);
+    fs.writeFileSync(dbPath, '', { flag: 'wx' });
     const dbUrl = `file:${dbPath}`;
     execSync('npx prisma db push --skip-generate', {
       cwd: path.resolve(process.cwd()),
@@ -28,13 +32,18 @@ describe('Phase 1: Authentication & Bookshelf Foundation', () => {
       stdio: 'pipe',
     });
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+    uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookshelf-backup-uploads-'));
+    process.env.UPLOADS_DIR = uploadsDir;
     app = await buildApp({ prisma, disableRateLimit: true });
   });
 
   afterAll(async () => {
-    await app.close();
-    await prisma.$disconnect();
+    await app?.close();
+    await prisma?.$disconnect();
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    if (uploadsDir) fs.rmSync(uploadsDir, { recursive: true, force: true });
+    if (previousUploadsDir === undefined) delete process.env.UPLOADS_DIR;
+    else process.env.UPLOADS_DIR = previousUploadsDir;
   });
 
   it('registers a user, hashes password securely, sets HTTP-only cookie, and isolates per-user shelves', async () => {
@@ -219,5 +228,65 @@ describe('Phase 1: Authentication & Bookshelf Foundation', () => {
     const renewed = await prisma.session.findUniqueOrThrow({ where: { id: session.id } });
     const renewedDays = (renewed.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000);
     expect(renewedDays).toBeGreaterThan(364);
+  });
+
+  it('exports one account and restores independent copies with reading data and uploaded art', async () => {
+    const register = async (username: string, seedSamples: boolean) => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: { username, password: 'Password1234', seedSamples },
+      });
+      expect(response.statusCode).toBe(201);
+      return { cookie: extractCookie(response.headers['set-cookie']) };
+    };
+    const source = await register('backup_source', true);
+    const target = await register('backup_target', false);
+    const sourceLibrary = (await app.inject({ method: 'GET', url: '/api/bookshelves', headers: source })).json();
+    const sourceShelf: BookshelfDto = sourceLibrary.bookshelves[0];
+    const book = sourceShelf.compartments.flatMap((comp) => comp.books)[0];
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aLdUAAAAASUVORK5CYII=', 'base64');
+    const imageUrl = '/uploads/c2a978cf-1bbd-4838-81c8-72e074f89dc4.png';
+    fs.writeFileSync(path.join(uploadsDir, path.basename(imageUrl)), png);
+    const update = await app.inject({
+      method: 'PATCH',
+      url: `/api/bookshelf/books/${book.id}`,
+      headers: source,
+      payload: {
+        orientation: 'leaning-right',
+        visualOverrides: { notes: 'A private note', rating: 4, readingStatus: 'finished', customSpineUrl: imageUrl },
+      },
+    });
+    expect(update.statusCode).toBe(200);
+
+    const download = await app.inject({ method: 'GET', url: '/api/library/backup', headers: source });
+    expect(download.statusCode).toBe(200);
+    const backup = download.json();
+    expect(backup).toMatchObject({ version: 1, images: { [imageUrl]: png.toString('base64') } });
+    expect(backup.shelves).toHaveLength(1);
+    expect(backup.shelves[0]).not.toHaveProperty('userId');
+
+    const restore = (payload: object, headers?: { cookie: string }) => app.inject({
+      method: 'POST', url: '/api/library/restore', headers, payload,
+    });
+    expect((await restore(backup)).statusCode).toBe(401);
+    expect((await restore({ ...backup, images: {} }, target)).statusCode).toBe(400);
+    expect((await restore(backup, target)).json()).toEqual({ restoredCount: 1 });
+
+    const restored: BookshelfDto[] = (await app.inject({ method: 'GET', url: '/api/bookshelves', headers: target })).json().bookshelves;
+    expect(restored).toHaveLength(2);
+    expect(restored[1]).toMatchObject({ name: sourceShelf.name, configuration: sourceShelf.configuration });
+    const restoredBook = restored[1].compartments.flatMap((comp) => comp.books)[0];
+    expect(restoredBook.book).toMatchObject({
+      title: book.book.title,
+      providerBookId: book.book.providerBookId,
+      physicalDimensions: book.book.physicalDimensions,
+    });
+    expect(restoredBook).toMatchObject({
+      orientation: 'leaning-right',
+      visualOverrides: { notes: 'A private note', rating: 4, readingStatus: 'finished' },
+    });
+    expect(restoredBook.visualOverrides.customSpineUrl).not.toBe(imageUrl);
+    expect(fs.readFileSync(path.join(uploadsDir, path.basename(restoredBook.visualOverrides.customSpineUrl ?? '')))).toEqual(png);
   });
 });

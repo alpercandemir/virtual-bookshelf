@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import {
   resolvePhysicalDimensions,
   type BookshelfDto,
@@ -89,6 +89,7 @@ describe('<Bookshelf /> component', () => {
     shelf.compartments[0].books = [
       makeShelfBook(0, 'comp-0', {
         title: 'Slim Poetry',
+        authors: ['Ursula K. Le Guin'],
         pageCount: 110,
         physicalDimensions: resolvePhysicalDimensions({
           pageCount: 110,
@@ -98,6 +99,7 @@ describe('<Bookshelf /> component', () => {
       }),
       makeShelfBook(1, 'comp-0', {
         title: 'Epic History',
+        authors: ['Frank Herbert'],
         pageCount: 980,
         physicalDimensions: resolvePhysicalDimensions({
           pageCount: 980,
@@ -116,6 +118,8 @@ describe('<Bookshelf /> component', () => {
 
     const slimBtn = screen.getByTestId('book-spine-sb-0');
     const epicBtn = screen.getByTestId('book-spine-sb-1');
+    expect(within(slimBtn).getByText('Ursula K. Le Guin')).toBeVisible();
+    expect(within(epicBtn).getByText('Frank Herbert')).toBeVisible();
 
     const slimSlot = slimBtn.closest('.book-slot') as HTMLElement;
     const epicSlot = epicBtn.closest('.book-slot') as HTMLElement;
