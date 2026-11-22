@@ -295,9 +295,9 @@ export function ShelfCustomizerDrawer({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md ui-surface-panel border-l h-full flex flex-col shadow-[-24px_0_48px_rgba(0,0,0,0.45)]">
+      <div className="w-full max-w-md ui-surface-panel border-l h-full h-[100dvh] flex flex-col shadow-[-24px_0_48px_rgba(0,0,0,0.45)]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b ui-surface-header">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b ui-surface-header">
           <div className="flex items-center gap-2.5">
             <SlidersHorizontal className="w-4 h-4 text-[#c89d54]" />
             <h2 className="font-display text-2xl font-semibold ui-text-primary">
@@ -308,17 +308,17 @@ export function ShelfCustomizerDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close customizer"
-            className="p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto library-scroll p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 space-y-6">
           {/* Shelf Name & Year/Tag */}
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="sm:col-span-2">
               <label
                 htmlFor="shelf-name-input"
                 className="block text-xs uppercase tracking-widest ui-text-muted mb-1.5"
@@ -331,7 +331,7 @@ export function ShelfCustomizerDrawer({
                 maxLength={80}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm focus:outline-none focus:border-[#cfa458]"
+                className="w-full rounded-lg ui-surface-input border px-3 py-2 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
               />
             </div>
             <div>
@@ -349,7 +349,7 @@ export function ShelfCustomizerDrawer({
                 value={tag}
                 onChange={(e) => setTag(e.target.value)}
                 placeholder="e.g. 2026"
-                className="w-full rounded-lg ui-surface-input border px-3 py-2 text-sm focus:outline-none focus:border-[#cfa458]"
+                className="w-full rounded-lg ui-surface-input border px-3 py-2 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
               />
             </div>
           </div>
@@ -741,7 +741,7 @@ export function ShelfCustomizerDrawer({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t ui-surface-header flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t ui-surface-header flex items-center justify-between gap-3">
           <button
             type="button"
             disabled={saving}

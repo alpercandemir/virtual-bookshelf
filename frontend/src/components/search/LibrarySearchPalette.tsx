@@ -105,7 +105,7 @@ export function LibrarySearchPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 bg-black/65 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[4vh] sm:pt-[10vh] px-3 sm:px-4 bg-black/65 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Find in My Library"
@@ -115,7 +115,7 @@ export function LibrarySearchPalette({
     >
       <div
         data-testid="library-search-palette"
-        className="w-full max-w-xl rounded-2xl border ui-surface-panel shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col max-h-[74vh]"
+        className="w-full max-w-xl rounded-2xl border ui-surface-panel shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col max-h-[84dvh] sm:max-h-[74vh]"
       >
         {/* Search Input Header */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b ui-surface-header">
@@ -126,7 +126,7 @@ export function LibrarySearchPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a book across all your shelves, authors, tags, or notes..."
-            className="flex-1 bg-transparent text-sm ui-text-primary placeholder:opacity-55 focus:outline-none"
+            className="flex-1 min-w-0 bg-transparent text-base sm:text-sm ui-text-primary placeholder:opacity-55 focus:outline-none"
           />
           <kbd className="hidden sm:inline-flex items-center rounded border border-current/20 px-1.5 py-0.5 text-[10px] ui-text-muted font-mono">
             ESC
@@ -142,7 +142,7 @@ export function LibrarySearchPalette({
         </div>
 
         {/* Status Filter Pills */}
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b ui-surface-header text-xs">
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b ui-surface-header text-xs overflow-x-auto no-scrollbar">
           {(
             [
               { id: 'all', label: `All (${allEntries.length})` },
@@ -155,7 +155,7 @@ export function LibrarySearchPalette({
               key={f.id}
               type="button"
               onClick={() => setStatusFilter(f.id)}
-              className={`px-2.5 py-1 rounded-full border transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded-full border transition cursor-pointer whitespace-nowrap shrink-0 ${
                 statusFilter === f.id
                   ? 'bg-[#cfa458] text-[#1a1107] border-[#e2be79] font-semibold'
                   : 'border-current/15 ui-text-secondary hover:border-[#cfa458]/50'

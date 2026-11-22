@@ -34,7 +34,7 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 sm:py-10 relative overflow-hidden">
       {/* Warm antique wooden architectural hint behind card */}
       <div
         aria-hidden="true"
@@ -125,7 +125,7 @@ export function AuthScreen() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="librarian"
-                  className="w-full rounded-lg bg-[#120d09] border border-[#c9a15c]/25 pl-10 pr-3.5 py-2.5 text-sm text-[#f7eedf] placeholder:text-[#6d5c48] focus:outline-none focus:border-[#d8b168] focus:ring-1 focus:ring-[#d8b168]/60"
+                  className="w-full rounded-lg bg-[#120d09] border border-[#c9a15c]/25 pl-10 pr-3.5 py-2.5 text-base sm:text-sm text-[#f7eedf] placeholder:text-[#6d5c48] focus:outline-none focus:border-[#d8b168] focus:ring-1 focus:ring-[#d8b168]/60"
                 />
               </div>
             </div>
@@ -149,7 +149,7 @@ export function AuthScreen() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter password'}
-                  className="w-full rounded-lg bg-[#120d09] border border-[#c9a15c]/25 pl-10 pr-3.5 py-2.5 text-sm text-[#f7eedf] placeholder:text-[#6d5c48] focus:outline-none focus:border-[#d8b168] focus:ring-1 focus:ring-[#d8b168]/60"
+                  className="w-full rounded-lg bg-[#120d09] border border-[#c9a15c]/25 pl-10 pr-3.5 py-2.5 text-base sm:text-sm text-[#f7eedf] placeholder:text-[#6d5c48] focus:outline-none focus:border-[#d8b168] focus:ring-1 focus:ring-[#d8b168]/60"
                 />
               </div>
             </div>

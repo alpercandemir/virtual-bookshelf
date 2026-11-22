@@ -3,7 +3,8 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -241,7 +242,7 @@ function SortableShelfCard({
                 type="button"
                 aria-label={`Drag to reorder ${shelf.name}`}
                 title="Drag to reorder"
-                className="pointer-events-auto inline-flex items-center justify-center rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-sm border border-white/15 p-1 text-[#f5e7cf] cursor-grab active:cursor-grabbing"
+                className="pointer-events-auto touch-none inline-flex items-center justify-center rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-sm border border-white/15 p-1.5 sm:p-1 text-[#f5e7cf] cursor-grab active:cursor-grabbing"
                 {...attributes}
                 {...listeners}
               >
@@ -414,7 +415,8 @@ export function AllShelvesOverview({
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -460,7 +462,7 @@ export function AllShelvesOverview({
     <section
       aria-label="All Bookshelves Overview"
       data-testid="all-shelves-overview"
-      className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8"
+      className="w-full max-w-6xl mx-auto px-3.5 sm:px-6 py-5 sm:py-8"
     >
       {/* Mission Control Header */}
       <div className="mb-6">
@@ -522,7 +524,7 @@ export function AllShelvesOverview({
               type="button"
               onClick={onCreateShelf}
               data-testid="overview-create-shelf-btn"
-              className={`min-h-[300px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 p-6 transition cursor-pointer ${
+              className={`min-h-[180px] sm:min-h-[300px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 p-6 transition cursor-pointer ${
                 isLightRoom
                   ? 'border-[#c7b8a0] hover:border-[#8c6b3b] bg-white/45 hover:bg-white/75 text-[#4f4234]'
                   : 'border-[#c9a15c]/28 hover:border-[#dfb86d]/65 bg-[#19120d]/55 hover:bg-[#231912]/80 text-[#d8c4a6]'

@@ -16,7 +16,17 @@
       radial-gradient(circle at 18% 72%, rgba(92, 58, 30, 0.08) 0%, transparent 55%),
       radial-gradient(circle at 82% 72%, rgba(92, 58, 30, 0.08) 0%, transparent 55%);
     min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  button,
+  a,
+  select,
+  input,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1, h2, h3, .font-display {
@@ -26,4 +36,13 @@
   .font-book-serif {
     font-family: var(--font-serif);
   }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

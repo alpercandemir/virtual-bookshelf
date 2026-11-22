@@ -104,6 +104,7 @@
 
 .library-room {
   min-height: 100vh;
+  min-height: 100dvh;
   transition: background-color 360ms ease, color 360ms ease;
 }
 
@@ -676,21 +677,45 @@
   transition: opacity 220ms ease, transform 220ms ease;
 }
 
-.book-slot:hover,
 .book-slot:focus-within {
   z-index: 30;
 }
 
-.book-slot:hover .book-spine-button,
 .book-slot:focus-within .book-spine-button {
   transform: translateY(-10px) scale(1.018);
   filter: brightness(1.08);
 }
 
-.book-slot:hover::after,
 .book-slot:focus-within::after {
   opacity: 0.45;
   transform: scaleX(0.9);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .book-slot:hover {
+    z-index: 30;
+  }
+
+  .book-slot:hover .book-spine-button {
+    transform: translateY(-10px) scale(1.018);
+    filter: brightness(1.08);
+  }
+
+  .book-slot:hover::after {
+    opacity: 0.45;
+    transform: scaleX(0.9);
+  }
+}
+
+@media (hover: none) {
+  .book-slot:active .book-spine-button {
+    transform: translateY(-5px) scale(1.01);
+    filter: brightness(1.06);
+  }
+
+  .book-hover-tooltip {
+    display: none;
+  }
 }
 
 .book-slot[data-dragging="true"] {
@@ -741,6 +766,7 @@
     inset 0 -2px 4px rgba(0, 0, 0, 0.42);
   user-select: none;
   -webkit-user-select: none;
+  touch-action: manipulation;
   text-align: center;
 }
 
@@ -1050,7 +1076,12 @@
   }
 }
 
-/* Custom warm dark scrollbars for narrow screens & drawers */
+/* Custom warm dark scrollbars & smooth touch momentum for narrow screens & drawers */
+.library-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 .library-scroll::-webkit-scrollbar {
   height: 10px;
   width: 8px;
@@ -1228,4 +1259,55 @@
 
 .ui-text-muted {
   color: var(--ui-text-muted);
+}
+
+/* ==========================================================================
+   MOBILE & COMPACT VIEWPORT REFINEMENTS
+   ========================================================================== */
+@media (max-width: 639px) {
+  .bookshelf-cabinet {
+    min-width: 640px;
+    filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.72));
+  }
+
+  .bookshelf-brass-lamp {
+    width: 170px;
+  }
+
+  .bookshelf-crown {
+    margin: 0 -8px;
+  }
+
+  .bookshelf-crown-cove {
+    margin: 0 5px;
+  }
+
+  .bookshelf-crown-frieze {
+    margin: 0 8px;
+  }
+
+  .bookshelf-body {
+    grid-template-columns: 20px 1fr 20px;
+  }
+
+  .bookshelf-stile::after {
+    left: 5px;
+    right: 5px;
+  }
+
+  .bookshelf-cabinet[data-cabinet-style="modern"] .bookshelf-body {
+    grid-template-columns: 14px 1fr 14px;
+  }
+
+  .bookshelf-plinth {
+    margin: 0 -5px;
+  }
+
+  .shelf-books-row {
+    padding: 14px 10px 6px 10px;
+  }
+
+  .book-3d-object:hover {
+    transform: rotateY(-24deg) rotateX(4deg);
+  }
 }

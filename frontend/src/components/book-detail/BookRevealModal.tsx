@@ -269,7 +269,7 @@ export function BookRevealModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 sm:p-6 bg-black/75 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={`Book details for ${book.title}`}
@@ -279,19 +279,19 @@ export function BookRevealModal({
     >
       <div
         data-testid="book-reveal-modal"
-        className="relative w-full max-w-4xl max-h-[92vh] rounded-2xl border border-[#cfa55a]/30 bg-gradient-to-b from-[#211812] to-[#16100c] shadow-[0_36px_90px_rgba(0,0,0,0.88)] overflow-hidden flex flex-col md:flex-row"
+        className="relative w-full max-w-4xl max-h-[94dvh] rounded-2xl border border-[#cfa55a]/30 bg-gradient-to-b from-[#211812] to-[#16100c] shadow-[0_36px_90px_rgba(0,0,0,0.88)] overflow-y-auto md:overflow-hidden library-scroll flex flex-col md:flex-row"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close book inspector"
-          className="absolute top-3.5 right-3.5 z-30 p-2 rounded-full bg-[#140e0a]/80 border border-[#c9a15c]/25 text-[#c7b397] hover:text-[#fff2db] hover:border-[#dfb86e]/55 transition cursor-pointer"
+          className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 z-30 p-2.5 sm:p-2 rounded-full bg-[#140e0a]/90 border border-[#c9a15c]/30 text-[#c7b397] hover:text-[#fff2db] hover:border-[#dfb86e]/55 transition cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Left Stage: Interactive 3D Physical Book Turning Out from Spine to Front Cover */}
-        <div className="md:w-[320px] shrink-0 bg-gradient-to-b from-[#291d14] via-[#1c130d] to-[#130d09] border-b md:border-b-0 md:border-r border-[#c9a15c]/18 flex flex-col items-center justify-center py-4 px-5 md:p-7 relative overflow-hidden">
+        <div className="md:w-[320px] shrink-0 bg-gradient-to-b from-[#291d14] via-[#1c130d] to-[#130d09] border-b md:border-b-0 md:border-r border-[#c9a15c]/18 flex flex-col items-center justify-center py-3 px-4 md:p-7 relative overflow-hidden">
           {/* Subtle spotlight behind 3D book */}
           <div
             aria-hidden="true"
@@ -302,7 +302,7 @@ export function BookRevealModal({
             }}
           />
 
-          <div className="book-3d-scene relative z-10 scale-[0.76] md:scale-100 -my-8 md:my-0">
+          <div className="book-3d-scene relative z-10 scale-[0.68] md:scale-100 -my-12 md:my-0">
             <div className="book-3d-object" data-view={view3D}>
               {/* 3D Front Cover */}
               <div
@@ -378,9 +378,9 @@ export function BookRevealModal({
         </div>
 
         {/* Right Panel: Metadata, Spine Customizer & Position Controls */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-none md:flex-1 flex flex-col min-w-0 md:min-h-0 md:overflow-hidden">
           {/* Title & Sub-navigation */}
-          <div className="px-6 pt-6 pb-3 border-b border-[#c9a15c]/15 pr-12">
+          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-[#c9a15c]/15 md:pr-12">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[#faf0de] leading-tight">
               {book.title}
             </h2>
@@ -394,7 +394,7 @@ export function BookRevealModal({
             </p>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 mt-4">
+            <div className="flex items-center gap-1 mt-3.5 sm:mt-4 overflow-x-auto no-scrollbar">
               {(
                 [
                   { id: 'details', label: 'Details', icon: BookOpen },
@@ -409,7 +409,7 @@ export function BookRevealModal({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
                       active
                         ? 'bg-[#332417] text-[#f7e3bb] border border-[#d8b166]/45'
                         : 'text-[#a8947b] hover:text-[#ebd9bc] hover:bg-[#221811]'
@@ -424,7 +424,7 @@ export function BookRevealModal({
           </div>
 
           {/* Tab Body */}
-          <div className="flex-1 overflow-y-auto library-scroll p-6 space-y-5">
+          <div className="flex-none md:flex-1 md:overflow-y-auto library-scroll p-4 sm:p-6 space-y-5">
             {activeTab === 'details' && (
               <>
                 {/* Reading Progress, Rating & Personal Notes */}
@@ -545,7 +545,7 @@ export function BookRevealModal({
                         }
                       }}
                       placeholder="Jot down a favorite quote, where you bought this edition, or reading reflections..."
-                      className="w-full rounded-lg bg-[#0f0a07] border border-[#c9a15c]/18 px-2.5 py-1.5 text-xs text-[#efe2cc] placeholder:text-[#665644] focus:outline-none focus:border-[#d5ad62] resize-none"
+                      className="w-full rounded-lg bg-[#0f0a07] border border-[#c9a15c]/18 px-2.5 py-2 sm:py-1.5 text-base sm:text-xs text-[#efe2cc] placeholder:text-[#665644] focus:outline-none focus:border-[#d5ad62] resize-none"
                     />
                   </div>
                 </div>
@@ -696,7 +696,7 @@ export function BookRevealModal({
                       />
                     </label>
                   </div>
-                  <div className="grid grid-cols-8 gap-2">
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
                     {CURATED_BOOK_PALETTES.map((p) => {
                       const active =
                         appearance.primaryColor.toLowerCase() ===
@@ -715,7 +715,7 @@ export function BookRevealModal({
                               textColor: p.textColor,
                             })
                           }
-                          className={`h-7 rounded-md border transition cursor-pointer ${
+                          className={`h-9 sm:h-7 rounded-md border transition cursor-pointer ${
                             active
                               ? 'border-[#f4d898] ring-2 ring-[#e2bc71]/60 scale-105'
                               : 'border-white/15 hover:scale-105'
@@ -878,7 +878,7 @@ export function BookRevealModal({
                     disabled={busy}
                     value={shelfBook.compartmentId}
                     onChange={(e) => handleMoveCompartment(e.target.value)}
-                    className="w-full rounded-lg bg-[#140e0a] border border-[#c9a15c]/25 px-3 py-2 text-sm text-[#f4e7d2] focus:outline-none focus:border-[#dbb468]"
+                    className="w-full rounded-lg bg-[#140e0a] border border-[#c9a15c]/25 px-3 py-2.5 sm:py-2 text-base sm:text-sm text-[#f4e7d2] focus:outline-none focus:border-[#dbb468]"
                   >
                     {allBookshelves && allBookshelves.length > 1
                       ? allBookshelves.map((s) => (
@@ -978,7 +978,7 @@ export function BookRevealModal({
           </div>
 
           {/* Footer: Remove Book */}
-          <div className="px-6 py-3.5 border-t border-[#c9a15c]/15 bg-[#130d09] flex items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-[#c9a15c]/15 bg-[#130d09] flex flex-wrap items-center justify-between gap-3">
             {!confirmRemove ? (
               <button
                 type="button"

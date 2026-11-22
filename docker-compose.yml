@@ -16,7 +16,7 @@ services:
       STATIC_DIR: /app/frontend/dist
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:5173}"
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
-      SESSION_TTL_DAYS: "${SESSION_TTL_DAYS:-14}"
+      SESSION_TTL_DAYS: "${SESSION_TTL_DAYS:-365}"
       GOOGLE_BOOKS_API_KEY: "${GOOGLE_BOOKS_API_KEY:-}"
     volumes:
       - bookshelf_data:/data

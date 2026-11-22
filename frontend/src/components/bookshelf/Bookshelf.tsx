@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -105,9 +106,15 @@ export function Bookshelf({
   const displayedCompartments = draftCompartments ?? bookshelf.compartments;
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 6,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -296,11 +303,11 @@ export function Bookshelf({
     >
       <section
         aria-label={bookshelf.name}
-        className="bookshelf-stage w-full px-2 sm:px-6 pt-3 pb-10"
+        className="bookshelf-stage w-full px-1 sm:px-6 pt-2 sm:pt-3 pb-6 sm:pb-10"
       >
         {/* Horizontally scrollable viewport wrapper on narrow screens to keep book spines readable */}
-        <div className="library-scroll overflow-x-auto pb-5 pt-4">
-          <div className="relative mx-auto w-full max-w-[1040px] min-w-[720px] px-6">
+        <div className="library-scroll overflow-x-auto pb-4 sm:pb-5 pt-3 sm:pt-4">
+          <div className="relative mx-auto w-full max-w-[1040px] min-w-[640px] sm:min-w-[720px] px-3 sm:px-6">
             {/* Warm Overhead Brass Gallery Lamp & Sconce Glow */}
             {showSconce && (
               <>

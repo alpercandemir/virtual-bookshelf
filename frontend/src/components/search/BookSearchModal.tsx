@@ -92,7 +92,7 @@ function ResultCard({
       className="flex gap-3.5 rounded-xl border ui-surface-card hover:border-[#cfa458]/55 p-3.5 transition"
     >
       {/* Book Cover Thumbnail */}
-      <div className="relative w-[68px] h-[102px] shrink-0 rounded overflow-hidden shadow-[0_6px_14px_rgba(0,0,0,0.45)] bg-[#231912]">
+      <div className="relative w-[56px] h-[84px] sm:w-[68px] sm:h-[102px] shrink-0 rounded overflow-hidden shadow-[0_6px_14px_rgba(0,0,0,0.45)] bg-[#231912]">
         <div className="relative z-0 w-full h-full isolate">
           <ProceduralCover
             title={item.title}
@@ -435,7 +435,7 @@ export function BookSearchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 sm:p-6 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Add Book to Bookshelf"
@@ -445,10 +445,10 @@ export function BookSearchModal({
     >
       <div
         data-testid="book-search-modal"
-        className="w-full max-w-3xl max-h-[90vh] rounded-2xl border ui-surface-panel shadow-[0_32px_80px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden"
+        className="w-full max-w-3xl max-h-[94dvh] sm:max-h-[90vh] rounded-2xl border ui-surface-panel shadow-[0_32px_80px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden"
       >
         {/* Header with Integrated Search / Manual Entry Tabs */}
-        <div className="px-6 pt-4 pb-3 border-b ui-surface-header space-y-3">
+        <div className="px-4 sm:px-6 pt-3.5 sm:pt-4 pb-3 border-b ui-surface-header space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               {activeTab === 'search' ? (
@@ -513,12 +513,12 @@ export function BookSearchModal({
             </div>
 
             {/* Destination Shelf Picker (shared across both tabs) */}
-            <label className="flex items-center gap-2 text-xs ui-text-secondary">
-              <span>Place on:</span>
+            <label className="flex items-center gap-2 text-xs ui-text-secondary w-full sm:w-auto">
+              <span className="shrink-0">Place on:</span>
               <select
                 value={targetCompartmentId}
                 onChange={(e) => setTargetCompartmentId(e.target.value)}
-                className="rounded-md ui-surface-input border px-2.5 py-1 text-xs"
+                className="flex-1 sm:flex-none rounded-md ui-surface-input border px-2.5 py-1.5 sm:py-1 text-base sm:text-xs"
               >
                 {bookshelf.compartments.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -538,10 +538,10 @@ export function BookSearchModal({
             {/* Search Controls */}
             <form
               onSubmit={handleSearchSubmit}
-              className="px-6 py-4 border-b ui-surface-header space-y-3"
+              className="px-4 sm:px-6 py-3 sm:py-4 border-b ui-surface-header space-y-2.5 sm:space-y-3"
             >
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="relative flex-1">
+              <div className="flex flex-row gap-2">
+                <div className="relative flex-1 min-w-0">
                   <Search className="w-4 h-4 ui-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="search"
@@ -558,7 +558,7 @@ export function BookSearchModal({
                             ? 'Search by title (e.g. The Name of the Rose)'
                             : 'Search title, author, or ISBN...'
                     }
-                    className="w-full rounded-lg ui-surface-input border pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:border-[#cfa458]"
+                    className="w-full rounded-lg ui-surface-input border pl-10 pr-3 py-2.5 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
                   />
                 </div>
 
@@ -566,9 +566,9 @@ export function BookSearchModal({
                   type="submit"
                   disabled={loading || !query.trim()}
                   data-testid="book-search-submit"
-                  className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-5 py-2.5 shadow cursor-pointer shrink-0"
+                  className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-4 sm:px-5 py-2.5 shadow cursor-pointer shrink-0"
                 >
-                  {loading ? 'Searching...' : 'Search'}
+                  {loading ? '...' : 'Search'}
                 </button>
               </div>
 
@@ -592,7 +592,7 @@ export function BookSearchModal({
             </form>
 
             {/* Results Body */}
-            <div className="flex-1 overflow-y-auto library-scroll p-6 space-y-3">
+            <div className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 space-y-3">
               {error && (
                 <div className="rounded-xl border border-red-400/35 bg-red-950/35 p-4 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -688,7 +688,7 @@ export function BookSearchModal({
             </div>
 
             {/* Highlighted Footer Callout for Manual Entry + Pagination */}
-            <div className="px-6 py-3.5 border-t ui-surface-header flex flex-wrap items-center justify-between gap-3">
+            <div className="px-4 sm:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ui-surface-header flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={() => switchToManual(query)}
@@ -735,7 +735,7 @@ export function BookSearchModal({
           <form
             data-testid="manual-book-modal"
             onSubmit={handleManualSubmit}
-            className="flex-1 overflow-y-auto library-scroll p-6 space-y-4"
+            className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 space-y-4"
           >
             {manualError && (
               <div className="rounded-lg border border-red-400/35 bg-red-950/35 px-3.5 py-2 text-xs text-red-200">

@@ -322,7 +322,7 @@ function LibraryWorkspace() {
         <main className="flex-1 flex flex-col items-center justify-start">
           {/* Compact Multi-Shelf Switcher Bar (shown when user has > 1 shelf) */}
           {bookshelves.length > 1 && (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 flex items-center justify-center gap-2 flex-wrap">
+            <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 pt-3 flex items-center justify-start sm:justify-center gap-2 overflow-x-auto no-scrollbar sm:flex-wrap">
               {bookshelves.map((s) => {
                 const active = s.id === bookshelf.id;
                 return (
@@ -330,7 +330,7 @@ function LibraryWorkspace() {
                     key={s.id}
                     type="button"
                     onClick={() => selectBookshelf(s.id, true)}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs border transition cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-1 text-xs border transition cursor-pointer shrink-0 ${
                       active
                         ? isLightRoom
                           ? 'bg-[#2a2219] text-[#faf4e8] border-[#2a2219] font-medium shadow-sm'
@@ -365,7 +365,7 @@ function LibraryWorkspace() {
                 type="button"
                 onClick={() => setCreateShelfOpen(true)}
                 data-testid="quick-new-shelf-btn"
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border border-dashed transition cursor-pointer ${
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 sm:py-1 text-xs border border-dashed transition cursor-pointer shrink-0 ${
                   isLightRoom
                     ? 'border-[#b9a78e] text-[#5d4e3d] hover:border-[#7d623b] hover:bg-white/60'
                     : 'border-[#c9a15c]/35 text-[#d7b572] hover:border-[#e0b86c] hover:bg-[#231912]/70'
@@ -450,46 +450,51 @@ function LibraryWorkspace() {
 
           {/* Mobile Prev/Next Shelf Arrows */}
           {bookshelves.length > 1 && (
-            <div className="flex md:hidden items-center justify-center gap-4 pb-3">
+            <div className="flex md:hidden items-center justify-center gap-3 px-3 pb-3 w-full max-w-md">
               <button
                 type="button"
                 onClick={goToPrevShelf}
-                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs cursor-pointer ${
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs cursor-pointer min-w-0 ${
                   isLightRoom
                     ? 'bg-white/80 border-[#cfc2ae] text-[#352b20]'
                     : 'bg-[#1b140e]/80 border-[#c9a15c]/28 text-[#e7d4b3]'
                 }`}
               >
-                <ChevronLeft className="w-4 h-4" />
-                {prevShelf?.name}
+                <ChevronLeft className="w-4 h-4 shrink-0" />
+                <span className="max-w-[110px] truncate">{prevShelf?.name}</span>
               </button>
-              <span className="text-xs opacity-70 tabular-nums">
+              <span className="text-xs opacity-70 tabular-nums shrink-0">
                 {activeIndex + 1} / {bookshelves.length}
               </span>
               <button
                 type="button"
                 onClick={goToNextShelf}
-                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs cursor-pointer ${
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs cursor-pointer min-w-0 ${
                   isLightRoom
                     ? 'bg-white/80 border-[#cfc2ae] text-[#352b20]'
                     : 'bg-[#1b140e]/80 border-[#c9a15c]/28 text-[#e7d4b3]'
                 }`}
               >
-                {nextShelf?.name}
-                <ChevronRight className="w-4 h-4" />
+                <span className="max-w-[110px] truncate">{nextShelf?.name}</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
               </button>
             </div>
           )}
 
           <p
-            className={`text-[11px] pb-6 px-4 text-center ${
+            className={`text-[11px] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 text-center ${
               isLightRoom ? 'text-[#736452]' : 'text-[#7e6c57]'
             }`}
           >
-            Click any spine to pull it from the shelf &middot; Drag volumes to rearrange &middot;{' '}
-            {bookshelves.length > 1
-              ? 'Use ← / → arrows to switch shelves or open All Shelves'
-              : 'Create multiple shelves by year or genre anytime'}
+            <span className="sm:hidden">
+              Swipe shelf horizontally &middot; Tap any spine to inspect &middot; Press &amp; hold to rearrange
+            </span>
+            <span className="hidden sm:inline">
+              Click any spine to pull it from the shelf &middot; Drag volumes to rearrange &middot;{' '}
+              {bookshelves.length > 1
+                ? 'Use ← / → arrows to switch shelves or open All Shelves'
+                : 'Create multiple shelves by year or genre anytime'}
+            </span>
           </p>
         </main>
       )}

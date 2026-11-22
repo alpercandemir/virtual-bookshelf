@@ -75,7 +75,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Create New Bookshelf"
@@ -85,9 +85,9 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
     >
       <div
         data-testid="create-shelf-modal"
-        className="w-full max-w-xl max-h-[90vh] rounded-2xl border border-[#cfa55a]/30 bg-[#1a130e] text-[#f5ead7] shadow-[0_32px_80px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden"
+        className="w-full max-w-xl max-h-[92dvh] sm:max-h-[90vh] rounded-2xl border border-[#cfa55a]/30 bg-[#1a130e] text-[#f5ead7] shadow-[0_32px_80px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-[#c9a15c]/15 bg-[#140e0a] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#c9a15c]/15 bg-[#140e0a] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Library className="w-4 h-4 text-[#dfb86d]" />
             <h2 className="font-display text-2xl font-semibold">
@@ -98,7 +98,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="p-1.5 rounded-lg text-[#a99479] hover:text-[#f6e8d0] cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-lg text-[#a99479] hover:text-[#f6e8d0] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -106,7 +106,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
 
         <form
           onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto library-scroll p-6 space-y-5"
+          className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-5"
         >
           {error && (
             <div className="rounded-lg border border-red-400/35 bg-red-950/45 px-3.5 py-2 text-xs text-red-100">
@@ -128,7 +128,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. 2026 Reading Room"
-                className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 px-3.5 py-2 text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
+                className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 px-3.5 py-2 text-base sm:text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
               />
             </div>
 
@@ -145,7 +145,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                   value={tag}
                   onChange={(e) => setTag(e.target.value)}
                   placeholder="2026"
-                  className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 pl-8 pr-3 py-2 text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
+                  className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 pl-8 pr-3 py-2 text-base sm:text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
                 />
               </div>
             </div>

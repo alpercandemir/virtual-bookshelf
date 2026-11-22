@@ -64,8 +64,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
   }
 
-  app.addHook('preHandler', async (request) => {
-    await attachSessionUser(prisma, request);
+  app.addHook('preHandler', async (request, reply) => {
+    await attachSessionUser(prisma, request, reply);
   });
 
   app.setErrorHandler((error, _request, reply) => {

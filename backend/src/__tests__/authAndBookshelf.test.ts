@@ -180,4 +180,44 @@ describe('Phase 1: Authentication & Bookshelf Foundation', () => {
     expect(delShelf.statusCode).toBe(200);
     expect(delShelf.json().bookshelves).toHaveLength(1);
   });
+
+  it('issues 1-year (365-day) sessions by default and slides expiring sessions forward', async () => {
+    const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
+    const reg = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'long_session_user', password: 'StrongPassword123', seedSamples: false },
+    });
+    expect(reg.statusCode).toBe(201);
+    const setCookieHeader = String(reg.headers['set-cookie']);
+    expect(setCookieHeader).toContain(`Max-Age=${ONE_YEAR_SECONDS}`);
+    expect(setCookieHeader).toContain('Expires=');
+
+    const dbUser = await prisma.user.findUniqueOrThrow({ where: { username: 'long_session_user' } });
+    const session = await prisma.session.findFirstOrThrow({ where: { userId: dbUser.id } });
+    const daysRemaining = (session.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000);
+    expect(daysRemaining).toBeGreaterThan(364);
+    expect(daysRemaining).toBeLessThanOrEqual(365.1);
+
+    // Simulate an older 14-day session and verify sliding renewal extends it back to 1 year
+    const tenDaysFromNow = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { expiresAt: tenDaysFromNow },
+    });
+
+    const cookieStr = extractCookie(reg.headers['set-cookie']);
+    const meRes = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie: cookieStr },
+    });
+    expect(meRes.statusCode).toBe(200);
+    expect(meRes.json().user.username).toBe('long_session_user');
+    expect(String(meRes.headers['set-cookie'])).toContain(`Max-Age=${ONE_YEAR_SECONDS}`);
+
+    const renewed = await prisma.session.findUniqueOrThrow({ where: { id: session.id } });
+    const renewedDays = (renewed.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000);
+    expect(renewedDays).toBeGreaterThan(364);
+  });
 });

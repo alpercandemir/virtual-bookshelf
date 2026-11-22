@@ -14,7 +14,7 @@ services:
       STATIC_DIR: /app/frontend/dist
       FRONTEND_ORIGIN: "https://honeybooks.138.2.168.194.sslip.io"
       COOKIE_SECURE: "true"
-      SESSION_TTL_DAYS: "14"
+      SESSION_TTL_DAYS: "365"
       GOOGLE_BOOKS_API_KEY: "${GOOGLE_BOOKS_API_KEY:-}"
     volumes:
       - honeybooks_data:/data

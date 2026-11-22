@@ -116,7 +116,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
                 onClick={() => onQuickAddToCompartment(compartment.id)}
                 title="Add a book to this shelf"
                 aria-label={`Add book to shelf ${compartment.row + 1}`}
-                className="opacity-0 group-hover/comp:opacity-75 hover:!opacity-100 focus-visible:opacity-100 transition-opacity ml-2 mb-3 flex items-center justify-center w-8 h-8 rounded-full border border-dashed border-[#d6b26d]/45 bg-[#191009]/65 text-[#dfc080] hover:bg-[#2d1f14]/90 cursor-pointer shrink-0"
+                className="opacity-65 sm:opacity-0 sm:group-hover/comp:opacity-75 hover:!opacity-100 focus-visible:opacity-100 transition-opacity ml-2 mb-3 flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-full border border-dashed border-[#d6b26d]/45 bg-[#191009]/65 text-[#dfc080] hover:bg-[#2d1f14]/90 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
               </button>

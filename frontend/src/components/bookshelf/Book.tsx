@@ -144,7 +144,7 @@ export const BookVisual = React.memo(function BookVisual({
       {!isOverlay && !isDragging && (
         <div
           role="tooltip"
-          className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute -top-14 left-1/2 -translate-x-1/2 z-50 px-2.5 py-1.5 rounded-md bg-[#16100b]/95 border border-[#cfa55a]/40 shadow-[0_8px_20px_rgba(0,0,0,0.75)] whitespace-nowrap max-w-[240px]"
+          className="book-hover-tooltip pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute -top-14 left-1/2 -translate-x-1/2 z-50 px-2.5 py-1.5 rounded-md bg-[#16100b]/95 border border-[#cfa55a]/40 shadow-[0_8px_20px_rgba(0,0,0,0.75)] whitespace-nowrap max-w-[240px]"
         >
           <p className="text-xs font-medium text-[#f7ecd8] truncate">{book.title}</p>
           <div className="flex items-center gap-2 text-[10px] text-[#c3ae90]">

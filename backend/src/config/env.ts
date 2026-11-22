@@ -54,7 +54,7 @@ export function getConfig(): AppConfig {
     port: Number(process.env.PORT ?? 3001),
     host: process.env.HOST ?? '127.0.0.1',
     frontendOrigin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
-    sessionTtlDays: Math.max(1, Number(process.env.SESSION_TTL_DAYS ?? 14)),
+    sessionTtlDays: Math.max(1, Number(process.env.SESSION_TTL_DAYS ?? 365)),
     sessionCookieName: 'bookshelf_session',
     isProduction,
     cookieSecure: process.env.COOKIE_SECURE === 'true',
