@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import {
   resolvePhysicalDimensions,
   type BookshelfDto,
@@ -8,6 +8,8 @@ import {
 } from '@bookshelf/shared';
 import { Bookshelf } from '../components/bookshelf/Bookshelf';
 import { BookRevealModal } from '../components/book-detail/BookRevealModal';
+import { BookSearchModal } from '../components/search/BookSearchModal';
+import { ApiError } from '../api/client';
 
 function makeShelfBook(
   index: number,
@@ -191,5 +193,139 @@ describe('<BookRevealModal /> dimensions transparency', () => {
       />
     );
     expect(screen.getByText('Verified Measurements')).toBeInTheDocument();
+  });
+});
+
+describe('Full-shelf capacity warnings', () => {
+  function makeShelfWithFullFirstCompartment(): BookshelfDto {
+    const shelf = makeBookshelf(0);
+    // comp-0 has widthRatio 0.5 -> capacityPx = floor(920 * 0.5) - 24 = 436px
+    // 10 thick 900-page hardcovers (~60px each) easily fill comp-0 completely
+    shelf.compartments[0].books = Array.from({ length: 10 }, (_, idx) =>
+      makeShelfBook(idx, 'comp-0', {
+        title: `Thick Volume ${idx + 1}`,
+        pageCount: 900,
+        physicalDimensions: resolvePhysicalDimensions({
+          pageCount: 900,
+          format: 'hardcover',
+          title: `Thick Volume ${idx + 1}`,
+        }),
+      })
+    );
+    shelf.compartments[1].books = [
+      makeShelfBook(99, 'comp-1', { title: 'Lonely Book' }),
+    ];
+    return shelf;
+  }
+
+  it('shows a visible Shelf Full badge on full compartments', () => {
+    const shelf = makeShelfWithFullFirstCompartment();
+    render(
+      <Bookshelf
+        bookshelf={shelf}
+        onSelectBook={vi.fn()}
+        onQuickAddToCompartment={vi.fn()}
+      />
+    );
+
+    const fullComp = screen.getByTestId('compartment-comp-0');
+    const openComp = screen.getByTestId('compartment-comp-1');
+
+    expect(fullComp).toHaveAttribute('data-compartment-full', 'true');
+    expect(within(fullComp).getByTestId('compartment-full-badge')).toHaveTextContent(
+      'Shelf Full'
+    );
+    expect(within(openComp).queryByTestId('compartment-full-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows a prominent warning in BookSearchModal when targeting a full compartment and supports switching', () => {
+    const shelf = makeShelfWithFullFirstCompartment();
+    const onOpenCustomizer = vi.fn();
+
+    render(
+      <BookSearchModal
+        open
+        onClose={vi.fn()}
+        bookshelf={shelf}
+        initialCompartmentId="comp-0"
+        initialTab="manual"
+        onAddBook={vi.fn()}
+        onOpenCustomizer={onOpenCustomizer}
+        onToast={vi.fn()}
+      />
+    );
+
+    const warning = screen.getByTestId('shelf-full-warning');
+    expect(warning).toHaveAttribute('role', 'alert');
+    expect(warning).toHaveTextContent(/Level 1 — Section 1 is full/i);
+
+    const submitBtn = screen.getByTestId('manual-submit-btn');
+    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).toHaveTextContent(/Shelf Full/i);
+
+    // One-click switch to the next available compartment clears the warning
+    fireEvent.click(screen.getByTestId('switch-available-shelf-btn'));
+    expect(screen.queryByTestId('shelf-full-warning')).not.toBeInTheDocument();
+    expect(screen.getByTestId('manual-submit-btn')).toHaveTextContent('Add to Bookshelf');
+  });
+
+  it('defaults BookSearchModal to the first non-full compartment when opened from toolbar', () => {
+    const shelf = makeShelfWithFullFirstCompartment();
+
+    render(
+      <BookSearchModal
+        open
+        onClose={vi.fn()}
+        bookshelf={shelf}
+        onAddBook={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    const select = screen.getByLabelText('Destination shelf compartment') as HTMLSelectElement;
+    expect(select.value).toBe('comp-1');
+    expect(screen.queryByTestId('shelf-full-warning')).not.toBeInTheDocument();
+  });
+
+  it('shows an inline error banner in BookRevealModal when moving a book to a full compartment fails', async () => {
+    const shelf = makeShelfWithFullFirstCompartment();
+    const bookToMove = shelf.compartments[1].books[0];
+    const onUpdateBook = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError(
+          409,
+          'SHELF_FULL',
+          'That compartment does not have enough horizontal room for this book.'
+        )
+      );
+    const onToast = vi.fn();
+
+    render(
+      <BookRevealModal
+        shelfBook={bookToMove}
+        bookshelf={shelf}
+        onClose={vi.fn()}
+        onUpdateBook={onUpdateBook}
+        onRemoveBook={vi.fn()}
+        onToast={onToast}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Shelf Position' }));
+    const select = screen.getByLabelText('Shelf Compartment');
+    fireEvent.change(select, { target: { value: 'comp-0' } });
+
+    const errorBanner = await screen.findByTestId('move-compartment-error');
+    expect(errorBanner).toHaveAttribute('role', 'alert');
+    expect(errorBanner).toHaveTextContent(
+      /does not have enough horizontal room/i
+    );
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith(
+        expect.stringMatching(/does not have enough horizontal room/i),
+        'error'
+      )
+    );
   });
 });

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
+  ArrowRight,
   BookOpen,
   BookPlus,
   Camera,
@@ -11,6 +13,7 @@ import {
   Loader2,
   Plus,
   Search,
+  SlidersHorizontal,
   Upload,
   X,
 } from 'lucide-react';
@@ -23,6 +26,10 @@ import {
   type SearchResponse,
 } from '@bookshelf/shared';
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
+import {
+  formatCompartmentLabel,
+  getCompartmentCapacityStatus,
+} from '../../utils/compartmentCapacity';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
 import { getOwnership, indexOwnedBooks } from '../../utils/ownedBooks';
@@ -39,6 +46,7 @@ interface BookSearchModalProps {
     payload: Parameters<typeof api.addBook>[0],
     options?: { silent?: boolean }
   ) => Promise<unknown>;
+  onOpenCustomizer?: () => void;
   onToast: (message: string, tone?: 'info' | 'success' | 'error') => void;
 }
 
@@ -54,12 +62,14 @@ function ResultCard({
   adding,
   ownedKeys,
   justShelved,
+  compartmentFull,
   onSelectAdd,
 }: {
   item: SearchBookResult;
   adding: boolean;
   ownedKeys: Set<string>;
   justShelved: boolean;
+  compartmentFull: boolean;
   onSelectAdd: (item: SearchBookResult, edition?: SearchEditionSummary) => void;
 }) {
   const [selectedEditionIdx, setSelectedEditionIdx] = useState(0);
@@ -180,22 +190,31 @@ function ResultCard({
 
             <button
               type="button"
-              disabled={adding}
+              disabled={adding || (compartmentFull && !justShelved)}
+              title={
+                compartmentFull && !justShelved
+                  ? 'Selected shelf compartment is full. Choose another compartment above.'
+                  : undefined
+              }
               onClick={() => onSelectAdd(item, activeEdition)}
-              className={`inline-flex items-center gap-1.5 rounded-lg font-semibold text-xs px-3 py-1.5 shadow transition cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 ${
+              className={`inline-flex items-center gap-1.5 rounded-lg font-semibold text-xs px-3 py-1.5 shadow transition whitespace-nowrap shrink-0 disabled:opacity-60 ${
                 justShelved
-                  ? 'bg-emerald-700 hover:bg-emerald-600 text-emerald-50 border border-emerald-400/40'
-                  : 'bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] text-[#1b1208]'
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-emerald-50 border border-emerald-400/40 cursor-pointer'
+                  : compartmentFull
+                    ? 'ui-alert-danger border cursor-not-allowed'
+                    : 'bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] text-[#1b1208] cursor-pointer'
               }`}
             >
               {adding ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : justShelved ? (
                 <Check className="w-3.5 h-3.5" />
+              ) : compartmentFull ? (
+                <AlertTriangle className="w-3.5 h-3.5 ui-alert-danger-icon" />
               ) : (
                 <Plus className="w-3.5 h-3.5" />
               )}
-              {justShelved ? 'Shelved' : 'Shelve Book'}
+              {justShelved ? 'Shelved' : compartmentFull ? 'Shelf Full' : 'Shelve Book'}
             </button>
           </div>
         </div>
@@ -212,6 +231,7 @@ export function BookSearchModal({
   initialCompartmentId,
   initialTab = 'search',
   onAddBook,
+  onOpenCustomizer,
   onToast,
 }: BookSearchModalProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'scan' | 'manual'>(initialTab);
@@ -225,6 +245,7 @@ export function BookSearchModal({
   const [addingId, setAddingId] = useState<string | null>(null);
   const [shelvedIds, setShelvedIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
+  const [shelfFullError, setShelfFullError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse | null>(null);
 
   // Manual entry state
@@ -246,16 +267,68 @@ export function BookSearchModal({
     () => indexOwnedBooks(allBookshelves?.length ? allBookshelves : [bookshelf]),
     [allBookshelves, bookshelf]
   );
-  const firstCompartmentId = bookshelf.compartments[0]?.id ?? '';
+
+  const compartmentStatuses = useMemo(() => {
+    const map = new Map(
+      bookshelf.compartments.map((c) => [c.id, getCompartmentCapacityStatus(c)])
+    );
+    return map;
+  }, [bookshelf.compartments]);
+
+  const defaultCompartmentId = useMemo(() => {
+    const withComfortableRoom = bookshelf.compartments.find((c) => {
+      const st = compartmentStatuses.get(c.id);
+      return st && !st.isFull && !st.isNearlyFull;
+    });
+    if (withComfortableRoom) return withComfortableRoom.id;
+    const withAnyRoom = bookshelf.compartments.find((c) => {
+      const st = compartmentStatuses.get(c.id);
+      return st && !st.isFull;
+    });
+    return withAnyRoom?.id ?? bookshelf.compartments[0]?.id ?? '';
+  }, [bookshelf.compartments, compartmentStatuses]);
+
+  const selectedCompartment = useMemo(
+    () =>
+      bookshelf.compartments.find((c) => c.id === targetCompartmentId) ??
+      bookshelf.compartments[0],
+    [bookshelf.compartments, targetCompartmentId]
+  );
+  const selectedStatus = selectedCompartment
+    ? compartmentStatuses.get(selectedCompartment.id)
+    : undefined;
+
+  const nextAvailableCompartment = useMemo(() => {
+    return (
+      bookshelf.compartments.find((c) => {
+        if (c.id === selectedCompartment?.id) return false;
+        const st = compartmentStatuses.get(c.id);
+        return st && !st.isFull && !st.isNearlyFull;
+      }) ??
+      bookshelf.compartments.find((c) => {
+        if (c.id === selectedCompartment?.id) return false;
+        const st = compartmentStatuses.get(c.id);
+        return st && !st.isFull;
+      }) ??
+      null
+    );
+  }, [bookshelf.compartments, compartmentStatuses, selectedCompartment?.id]);
+
+  const allCompartmentsFull = useMemo(
+    () =>
+      bookshelf.compartments.length > 0 &&
+      bookshelf.compartments.every((c) => compartmentStatuses.get(c.id)?.isFull),
+    [bookshelf.compartments, compartmentStatuses]
+  );
+
   const [scanSaving, setScanSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setActiveTab(initialTab);
       setShelvedIds(new Set());
-      setTargetCompartmentId(
-        initialCompartmentId || firstCompartmentId
-      );
+      setTargetCompartmentId(initialCompartmentId || defaultCompartmentId);
+      setShelfFullError(null);
       setManualTitle('');
       setAuthorsText('');
       setIsbn('');
@@ -268,7 +341,8 @@ export function BookSearchModal({
       setUploadedCoverUrl(null);
       setManualError(null);
     }
-  }, [open, initialTab, initialCompartmentId, firstCompartmentId, bookshelf.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialTab, initialCompartmentId, bookshelf.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -375,7 +449,11 @@ export function BookSearchModal({
         visualOverrides,
       });
       setShelvedIds((prev) => new Set(prev).add(item.id));
+      setShelfFullError(null);
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'SHELF_FULL') {
+        setShelfFullError(err.message);
+      }
       onToast(
         err instanceof ApiError ? err.message : 'Unable to add book to shelf.',
         'error'
@@ -425,9 +503,14 @@ export function BookSearchModal({
       });
       onClose();
     } catch (err) {
-      setManualError(
-        err instanceof ApiError ? err.message : 'Could not add book.'
-      );
+      if (err instanceof ApiError && err.code === 'SHELF_FULL') {
+        setShelfFullError(err.message);
+        onToast(err.message, 'error');
+      } else {
+        setManualError(
+          err instanceof ApiError ? err.message : 'Could not add book.'
+        );
+      }
     } finally {
       setManualSubmitting(false);
     }
@@ -531,27 +614,138 @@ export function BookSearchModal({
               </div>
             </div>
 
-            {/* Destination Shelf Picker (shared across both tabs) */}
+            {/* Destination Shelf Picker (shared across all tabs) */}
             <label className="flex items-center gap-2 text-xs ui-text-secondary w-full sm:w-auto">
               <span className="shrink-0">Place on:</span>
               <select
+                aria-label="Destination shelf compartment"
                 value={targetCompartmentId}
                 disabled={scanSaving}
-                onChange={(e) => setTargetCompartmentId(e.target.value)}
-                className="flex-1 sm:flex-none rounded-md ui-surface-input border px-2.5 py-1.5 sm:py-1 text-base sm:text-xs"
+                onChange={(e) => {
+                  setTargetCompartmentId(e.target.value);
+                  setShelfFullError(null);
+                }}
+                className={`flex-1 sm:flex-none rounded-md ui-surface-input border px-2.5 py-1.5 sm:py-1 text-base sm:text-xs transition ${
+                  selectedStatus?.isFull || shelfFullError
+                    ? '!border-red-500 ring-1 ring-red-500/40'
+                    : selectedStatus?.isNearlyFull
+                      ? '!border-amber-500/80 ring-1 ring-amber-500/30'
+                      : ''
+                }`}
               >
-                {bookshelf.compartments.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Level {c.row + 1}
-                    {c.settings.label
-                      ? ` — ${c.settings.label}`
-                      : ` (Col ${c.column + 1})`}
-                  </option>
-                ))}
+                {bookshelf.compartments.map((c) => {
+                  const st = compartmentStatuses.get(c.id);
+                  const suffix = st?.isFull
+                    ? ' — FULL'
+                    : st?.isNearlyFull
+                      ? ` — Almost full (${st.fillPct}%)`
+                      : '';
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {formatCompartmentLabel(c)}
+                      {suffix}
+                    </option>
+                  );
+                })}
               </select>
             </label>
           </div>
         </div>
+
+        {/* High-Visibility Shelf Capacity Warning Banner (Pinned above tab body) */}
+        {(shelfFullError || selectedStatus?.isFull) && (
+          <div
+            role="alert"
+            data-testid="shelf-full-warning"
+            className="px-4 sm:px-6 py-3.5 border-b-2 ui-alert-danger flex items-start gap-3"
+          >
+            <AlertTriangle className="w-5 h-5 ui-alert-danger-icon shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <p className="text-sm font-bold leading-snug">
+                  {shelfFullError
+                    ? 'Cannot add book — this shelf compartment is full'
+                    : allCompartmentsFull
+                      ? 'This bookshelf is completely full'
+                      : `${
+                          selectedCompartment
+                            ? formatCompartmentLabel(selectedCompartment)
+                            : 'Selected shelf'
+                        } is full`}
+                </p>
+                <p className="text-xs sm:text-sm ui-alert-danger-subtext mt-0.5 leading-snug">
+                  {shelfFullError
+                    ? shelfFullError
+                    : allCompartmentsFull
+                      ? 'No shelf compartments have space left. Add a new shelf level in Customize Shelf or create a new bookshelf.'
+                      : 'There is no room left for more books in this compartment. Choose another shelf compartment with space or add a new level in Customize Shelf.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {nextAvailableCompartment && (
+                  <button
+                    type="button"
+                    data-testid="switch-available-shelf-btn"
+                    onClick={() => {
+                      setTargetCompartmentId(nextAvailableCompartment.id);
+                      setShelfFullError(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs px-3 py-1.5 shadow-sm transition cursor-pointer"
+                  >
+                    <span>
+                      Switch to {formatCompartmentLabel(nextAvailableCompartment)}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onOpenCustomizer && (
+                  <button
+                    type="button"
+                    data-testid="open-customizer-from-warning-btn"
+                    onClick={onOpenCustomizer}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-current/35 bg-black/10 hover:bg-black/20 font-semibold text-xs px-3 py-1.5 transition cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Open Customize Shelf</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!shelfFullError && !selectedStatus?.isFull && selectedStatus?.isNearlyFull && (
+          <div
+            role="status"
+            data-testid="shelf-nearly-full-warning"
+            className="px-4 sm:px-6 py-2.5 border-b ui-alert-warning flex flex-wrap items-center justify-between gap-2.5"
+          >
+            <div className="flex items-start gap-2.5 min-w-0">
+              <AlertTriangle className="w-4 h-4 ui-alert-warning-icon shrink-0 mt-0.5" />
+              <p className="text-xs sm:text-sm leading-snug">
+                <strong className="font-semibold">
+                  {selectedCompartment
+                    ? formatCompartmentLabel(selectedCompartment)
+                    : 'This shelf'}{' '}
+                  is almost full ({selectedStatus.fillPct}%).
+                </strong>{' '}
+                <span className="ui-alert-warning-subtext">
+                  Only slim books may fit here.
+                </span>
+              </p>
+            </div>
+            {nextAvailableCompartment && (
+              <button
+                type="button"
+                onClick={() => setTargetCompartmentId(nextAvailableCompartment.id)}
+                className="inline-flex items-center gap-1 rounded-md border border-current/35 px-2.5 py-1 text-xs font-semibold hover:bg-black/10 transition cursor-pointer shrink-0"
+              >
+                <span>Switch to {formatCompartmentLabel(nextAvailableCompartment)}</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
 
         {activeTab === 'search' ? (
           <>
@@ -692,6 +886,7 @@ export function BookSearchModal({
                       adding={addingId === item.id}
                       ownedKeys={ownedKeys}
                       justShelved={shelvedIds.has(item.id)}
+                      compartmentFull={Boolean(selectedStatus?.isFull)}
                       onSelectAdd={handleAddResult}
                     />
                   ))}
@@ -745,8 +940,12 @@ export function BookSearchModal({
             className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 space-y-4"
           >
             {manualError && (
-              <div className="rounded-lg border border-red-400/35 bg-red-950/35 px-3.5 py-2 text-xs text-red-200">
-                {manualError}
+              <div
+                role="alert"
+                className="rounded-xl border-2 ui-alert-danger px-4 py-3 flex items-start gap-2.5 text-sm font-medium"
+              >
+                <AlertTriangle className="w-4 h-4 ui-alert-danger-icon shrink-0 mt-0.5" />
+                <span>{manualError}</span>
               </div>
             )}
 
@@ -919,11 +1118,28 @@ export function BookSearchModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={manualSubmitting || !manualTitle.trim()}
+                  disabled={
+                    manualSubmitting ||
+                    !manualTitle.trim() ||
+                    Boolean(selectedStatus?.isFull)
+                  }
+                  title={
+                    selectedStatus?.isFull
+                      ? 'Selected shelf compartment is full. Choose another compartment above.'
+                      : undefined
+                  }
                   data-testid="manual-submit-btn"
-                  className="rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] disabled:opacity-50 text-[#1b1208] font-semibold text-sm px-5 py-2 shadow cursor-pointer"
+                  className={`rounded-lg font-semibold text-sm px-5 py-2 shadow transition disabled:opacity-55 ${
+                    selectedStatus?.isFull
+                      ? 'ui-alert-danger border cursor-not-allowed'
+                      : 'bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] text-[#1b1208] cursor-pointer'
+                  }`}
                 >
-                  {manualSubmitting ? 'Shelving...' : 'Add to Bookshelf'}
+                  {manualSubmitting
+                    ? 'Shelving...'
+                    : selectedStatus?.isFull
+                      ? 'Shelf Full — Pick Another Shelf'
+                      : 'Add to Bookshelf'}
                 </button>
               </div>
             </div>

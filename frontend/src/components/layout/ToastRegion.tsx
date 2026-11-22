@@ -13,38 +13,42 @@ export function ToastRegion({
 
   return (
     <div
-      aria-live="polite"
-      className="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-4 pb-[env(safe-area-inset-bottom)] z-50 flex flex-col gap-2 sm:max-w-sm"
+      className="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-4 pb-[env(safe-area-inset-bottom)] z-[60] flex flex-col gap-2.5 sm:max-w-md"
     >
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs shadow-[0_12px_28px_rgba(0,0,0,0.75)] backdrop-blur-md ${
-            toast.tone === 'error'
-              ? 'bg-red-950/90 border-red-400/40 text-red-100'
-              : toast.tone === 'success'
-                ? 'bg-[#211811]/95 border-[#dfb86d]/45 text-[#f6e8cf]'
-                : 'bg-[#1c1510]/95 border-[#c9a15c]/30 text-[#ead9bd]'
-          }`}
-        >
-          {toast.tone === 'error' ? (
-            <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" />
-          ) : toast.tone === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-[#e2bc71] shrink-0" />
-          ) : (
-            <Info className="w-4 h-4 text-[#cfa75d] shrink-0" />
-          )}
-          <span className="flex-1">{toast.message}</span>
-          <button
-            type="button"
-            onClick={() => onDismiss(toast.id)}
-            aria-label="Dismiss notification"
-            className="text-current opacity-60 hover:opacity-100 cursor-pointer"
+      {toasts.map((toast) => {
+        const isError = toast.tone === 'error';
+        return (
+          <div
+            key={toast.id}
+            role={isError ? 'alert' : 'status'}
+            aria-live={isError ? 'assertive' : 'polite'}
+            className={`flex items-start gap-3 rounded-xl backdrop-blur-md shadow-[0_14px_34px_rgba(0,0,0,0.82)] ${
+              isError
+                ? 'bg-[#450a0a]/95 border-2 border-red-400/85 px-4 py-3.5 text-sm font-medium text-red-50'
+                : toast.tone === 'success'
+                  ? 'bg-[#211811]/95 border border-[#dfb86d]/45 px-4 py-2.5 text-xs text-[#f6e8cf]'
+                  : 'bg-[#1c1510]/95 border border-[#c9a15c]/30 px-4 py-2.5 text-xs text-[#ead9bd]'
+            }`}
           >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
+            {isError ? (
+              <AlertTriangle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" />
+            ) : toast.tone === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-[#e2bc71] shrink-0 mt-0.5" />
+            ) : (
+              <Info className="w-4 h-4 text-[#cfa75d] shrink-0 mt-0.5" />
+            )}
+            <span className="flex-1 leading-snug">{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => onDismiss(toast.id)}
+              aria-label="Dismiss notification"
+              className="text-current opacity-70 hover:opacity-100 cursor-pointer mt-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

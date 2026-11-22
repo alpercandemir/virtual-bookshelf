@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bookmark,
@@ -30,6 +31,7 @@ import {
   type SpineMotif,
 } from '@bookshelf/shared';
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
+import { getCompartmentCapacityStatus } from '../../utils/compartmentCapacity';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
 
@@ -96,6 +98,7 @@ export function BookRevealModal({
   const [busy, setBusy] = useState(false);
   const [matchingCover, setMatchingCover] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   const coverUploadRef = useRef<HTMLInputElement>(null);
   const spineUploadRef = useRef<HTMLInputElement>(null);
@@ -106,6 +109,7 @@ export function BookRevealModal({
     setView3D('front');
     setActiveTab('details');
     setNotesDraft(shelfBook?.visualOverrides.notes ?? '');
+    setMoveError(null);
   }, [shelfBook?.id]);
 
   useEffect(() => {
@@ -207,6 +211,7 @@ export function BookRevealModal({
   const handleMoveCompartment = async (compartmentId: string) => {
     if (compartmentId === shelfBook.compartmentId) return;
     setBusy(true);
+    setMoveError(null);
     try {
       const targetShelf = allBookshelves?.find((s) =>
         s.compartments.some((c) => c.id === compartmentId)
@@ -223,10 +228,10 @@ export function BookRevealModal({
         onClose();
       }
     } catch (err) {
-      onToast(
-        err instanceof ApiError ? err.message : 'Unable to move book.',
-        'error'
-      );
+      const message =
+        err instanceof ApiError ? err.message : 'Unable to move book.';
+      setMoveError(message);
+      onToast(message, 'error');
     } finally {
       setBusy(false);
     }
@@ -886,27 +891,58 @@ export function BookRevealModal({
                             key={s.id}
                             label={`${s.name}${s.tag ? ` (${s.tag})` : ''}`}
                           >
-                            {s.compartments.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                Level {c.row + 1}
-                                {c.settings.label
-                                  ? ` — ${c.settings.label}`
-                                  : ` (Column ${c.column + 1})`}{' '}
-                                ({c.books.length} books)
-                              </option>
-                            ))}
+                            {s.compartments.map((c) => {
+                              const st = getCompartmentCapacityStatus(c);
+                              const fullTag =
+                                c.id !== shelfBook.compartmentId && st.isFull
+                                  ? ' — FULL'
+                                  : '';
+                              return (
+                                <option key={c.id} value={c.id}>
+                                  Level {c.row + 1}
+                                  {c.settings.label
+                                    ? ` — ${c.settings.label}`
+                                    : ` (Column ${c.column + 1})`}{' '}
+                                  ({c.books.length} books){fullTag}
+                                </option>
+                              );
+                            })}
                           </optgroup>
                         ))
-                      : bookshelf.compartments.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            Level {c.row + 1}
-                            {c.settings.label
-                              ? ` — ${c.settings.label}`
-                              : ` (Column ${c.column + 1})`}{' '}
-                            ({c.books.length} books)
-                          </option>
-                        ))}
+                      : bookshelf.compartments.map((c) => {
+                          const st = getCompartmentCapacityStatus(c);
+                          const fullTag =
+                            c.id !== shelfBook.compartmentId && st.isFull
+                              ? ' — FULL'
+                              : '';
+                          return (
+                            <option key={c.id} value={c.id}>
+                              Level {c.row + 1}
+                              {c.settings.label
+                                ? ` — ${c.settings.label}`
+                                : ` (Column ${c.column + 1})`}{' '}
+                              ({c.books.length} books){fullTag}
+                            </option>
+                          );
+                        })}
                   </select>
+                  {moveError && (
+                    <div
+                      role="alert"
+                      data-testid="move-compartment-error"
+                      className="mt-2.5 rounded-xl border-2 border-red-400/75 bg-red-950/65 px-3.5 py-2.5 flex items-start gap-2.5 text-sm text-red-100"
+                    >
+                      <AlertTriangle className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-white">
+                          Cannot move book to that shelf
+                        </p>
+                        <p className="text-xs text-red-100/95 mt-0.5">
+                          {moveError}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Accessible Left / Right Order Controls */}

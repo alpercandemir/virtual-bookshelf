@@ -466,7 +466,8 @@
 .shelf-compartment[data-drop-invalid="true"] {
   box-shadow:
     inset 0 22px 28px -6px rgba(0, 0, 0, 0.82),
-    inset 0 0 0 2px rgba(220, 82, 68, 0.72);
+    inset 0 0 0 3px rgba(248, 113, 113, 0.92),
+    0 0 18px rgba(239, 68, 68, 0.35);
 }
 
 /* Inner Cabinet Side Return Walls (3D recessed cheek illusion) */
@@ -1215,6 +1216,16 @@
   --ui-text-secondary: #cbb698;
   --ui-text-muted: #98846c;
   --ui-hover: #281d15;
+  --ui-danger-bg: rgba(127, 29, 29, 0.42);
+  --ui-danger-border: rgba(248, 113, 113, 0.72);
+  --ui-danger-text: #fee2e2;
+  --ui-danger-subtext: #fecaca;
+  --ui-danger-icon: #fca5a5;
+  --ui-warning-bg: rgba(120, 53, 15, 0.4);
+  --ui-warning-border: rgba(251, 191, 36, 0.65);
+  --ui-warning-text: #fef3c7;
+  --ui-warning-subtext: #fde68a;
+  --ui-warning-icon: #fcd34d;
 }
 
 .library-room[data-room-mode="light"] {
@@ -1228,6 +1239,16 @@
   --ui-text-secondary: #534638;
   --ui-text-muted: #7c6d5c;
   --ui-hover: #efe7da;
+  --ui-danger-bg: #fef2f2;
+  --ui-danger-border: #dc2626;
+  --ui-danger-text: #7f1d1d;
+  --ui-danger-subtext: #991b1b;
+  --ui-danger-icon: #dc2626;
+  --ui-warning-bg: #fffbeb;
+  --ui-warning-border: #d97706;
+  --ui-warning-text: #78350f;
+  --ui-warning-subtext: #92400e;
+  --ui-warning-icon: #d97706;
 }
 
 .library-room[data-room-mode="light"] .library-scroll::-webkit-scrollbar-track {
@@ -1271,6 +1292,34 @@
 
 .ui-text-muted {
   color: var(--ui-text-muted);
+}
+
+.ui-alert-danger {
+  background-color: var(--ui-danger-bg);
+  border-color: var(--ui-danger-border);
+  color: var(--ui-danger-text);
+}
+
+.ui-alert-danger-subtext {
+  color: var(--ui-danger-subtext);
+}
+
+.ui-alert-danger-icon {
+  color: var(--ui-danger-icon);
+}
+
+.ui-alert-warning {
+  background-color: var(--ui-warning-bg);
+  border-color: var(--ui-warning-border);
+  color: var(--ui-warning-text);
+}
+
+.ui-alert-warning-subtext {
+  color: var(--ui-warning-subtext);
+}
+
+.ui-alert-warning-icon {
+  color: var(--ui-warning-icon);
 }
 
 /* ==========================================================================

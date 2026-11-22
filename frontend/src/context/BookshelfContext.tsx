@@ -102,10 +102,11 @@ export function BookshelfProvider({ children }: { children: React.ReactNode }) {
   const pushToast = useCallback(
     (message: string, tone: ToastItem['tone'] = 'info') => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const durationMs = tone === 'error' ? 6500 : 4200;
       setToasts((prev) => [...prev.slice(-3), { id, message, tone }]);
       window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4200);
+      }, durationMs);
     },
     []
   );

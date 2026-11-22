@@ -527,6 +527,10 @@ function LibraryWorkspace() {
         allBookshelves={bookshelves}
         initialCompartmentId={targetCompartmentId}
         onAddBook={addBookToShelf}
+        onOpenCustomizer={() => {
+          setSearchOpen(false);
+          setCustomizerOpen(true);
+        }}
         onToast={pushToast}
       />
 

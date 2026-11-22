@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
   Camera,
   Check,
   CheckSquare,
@@ -23,6 +24,7 @@ import {
   type ShelfScanResponse,
 } from '@bookshelf/shared';
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
+import { getCompartmentCapacityStatus } from '../../utils/compartmentCapacity';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
 import {
   optimizeShelfPhoto,
@@ -792,11 +794,15 @@ export function ShelfPhotoScanner({
                       className="min-w-0 flex-1 rounded ui-surface-input border px-2 py-1.5 text-base sm:text-xs"
                     >
                       <option value="">Choose compartment</option>
-                      {allCompartments.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          Level {c.row + 1} · {c.settings.label || `Column ${c.column + 1}`}
-                        </option>
-                      ))}
+                      {allCompartments.map((c) => {
+                        const st = getCompartmentCapacityStatus(c);
+                        return (
+                          <option key={c.id} value={c.id}>
+                            Level {c.row + 1} · {c.settings.label || `Column ${c.column + 1}`}
+                            {st.isFull ? ' — FULL' : st.isNearlyFull ? ` (${st.fillPct}% full)` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 ))}
@@ -901,7 +907,15 @@ export function ShelfPhotoScanner({
                           </div>
                         </div>
 
-                        {item.saveError && <p className="text-xs text-red-500" role="alert">{item.saveError}</p>}
+                        {item.saveError && (
+                          <div
+                            role="alert"
+                            className="rounded-lg border-2 ui-alert-danger px-3 py-2 flex items-start gap-2 text-xs font-medium"
+                          >
+                            <AlertTriangle className="w-4 h-4 ui-alert-danger-icon shrink-0 mt-0.5" />
+                            <span>{item.saveError}</span>
+                          </div>
+                        )}
 
                         {/* Match Selector + Re-search Trigger */}
                         {!item.shelved && (
