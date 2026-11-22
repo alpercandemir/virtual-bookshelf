@@ -206,8 +206,16 @@ test('reviews a two-row import, shares a shelf, and restores a backup on mobile'
   await expect(page.getByTestId(`compartment-${second}`).getByRole('button', { name: /^A Garden of Paper by Sam Kaya/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Share shelf', exact: true }).click();
-  const preview = page.getByRole('textbox', { name: 'Book list preview' });
-  await expect(preview).toHaveValue(/The Orchard — Alex Lee\n• A Garden of Paper — Sam Kaya/);
+  const preview = page.getByRole('img', { name: 'Image of My Personal Library' });
+  await expect(preview).toBeVisible();
+  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(1000);
+  const [shelfImage] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download PNG' }).click(),
+  ]);
+  expect(shelfImage.suggestedFilename()).toBe('My-Personal-Library.png');
+  const png = await files.readFile(await shelfImage.path());
+  expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   await page.getByRole('button', { name: 'Close share dialog' }).click();
   await expect(preview).toHaveCount(0);
 
