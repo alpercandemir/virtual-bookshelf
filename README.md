@@ -2,7 +2,7 @@
 
 # 📚 The Virtual Bookshelf
 
-**A hobby project built for a friend who loves books — a cozy, tactile personal library for the web.**  
+**A personal hobby project — a cozy, tactile virtual bookcase for the web.**  
 No spreadsheets or cluttered reading trackers: just real book proportions, wood & linen bindings, 3D cover reveals, interior room themes, and snapping a photo of your real shelf to bring it online.
 
 <p>
@@ -25,7 +25,7 @@ No spreadsheets or cluttered reading trackers: just real book proportions, wood 
 
 ## 👋 Why This Exists
 
-This is a **personal hobby project** I built for a friend who wanted a nicer place to keep track of their physical books—something that actually feels like standing in front of a wooden bookcase rather than scrolling through a database table. It's self-hosted, private, runs in a single Docker container with SQLite, and works smoothly on both desktop and mobile.
+This is a **personal hobby project** built for fun to have a nicer place to keep track of physical books—something that actually feels like standing in front of a wooden bookcase rather than scrolling through a database table. It's self-hosted, private, runs in a single Docker container with SQLite, and works smoothly on both desktop and mobile.
 
 ---
 
@@ -38,7 +38,18 @@ Adding 50 physical books one by one is tedious, so you can just take a photo of 
 - **Gemini Flash-Lite** reads the spines top-to-bottom, left-to-right, estimates each spine's real color, and matches editions against Google Books & Open Library.
 - A review screen shows confidence badges (`High` / `Check` / `Low`), automatically unchecks books already `In Library`, lets you swap editions or fix a misread title with zero extra AI calls, optionally keeps the photo's real spine colors, and shelves the whole batch in photo order (overflowing to the next shelf if one fills up).
 
-<img src="docs/screenshots/shelf-photo-scan.png" alt="Scan Real Shelf Photo Review Modal" width="100%" />
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/shelf-photo-upload.png" alt="Step 1: Drop a real bookshelf photo ready for Gemini Flash-Lite" width="100%" />
+      <p align="center"><strong>1. Drop a Shelf Photo</strong><br />Auto-compressed locally (e.g. <code>225 KB</code>) before sending to Gemini Flash-Lite to stay fast and free-tier friendly.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/shelf-photo-scan.png" alt="Step 2: Gemini Flash-Lite review checklist with duplicate detection and batch shelving" width="100%" />
+      <p align="center"><strong>2. Review &amp; Batch Shelve</strong><br />Spines are read left-to-right with color dots, confidence badges, automatic <code>In Library</code> duplicate skip, edition picker, and one-click shelving.</p>
+    </td>
+  </tr>
+</table>
 
 > **Note:** `GEMINI_API_KEY` is **completely optional**. If you don't configure a key, the entire app works normally—only the **Scan Photo** tab stays disabled with a short setup notice.
 
