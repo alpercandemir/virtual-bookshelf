@@ -6,12 +6,14 @@ import {
   LogOut,
   Plus,
   Search,
+  Share2,
   SlidersHorizontal,
   Sparkles,
   Tag,
   User,
 } from 'lucide-react';
 import type { BookshelfDto, UserDto } from '@bookshelf/shared';
+import { LibraryBackupActions } from './LibraryBackupActions';
 import type { ShelfViewMode } from '../../context/BookshelfContext';
 
 interface TopToolbarProps {
@@ -26,6 +28,9 @@ interface TopToolbarProps {
   onOpenLibraryFind: () => void;
   onOpenSearch: () => void;
   onOpenCustomizer: () => void;
+  onLibraryRestore: () => Promise<void>;
+  onToast: (message: string, tone?: 'info' | 'success' | 'error') => void;
+  onShareShelf: () => void;
   onSeedSamples: () => void;
   onLogout: () => void;
 }
@@ -42,6 +47,9 @@ export function TopToolbar({
   onOpenLibraryFind,
   onOpenSearch,
   onOpenCustomizer,
+  onLibraryRestore,
+  onToast,
+  onShareShelf,
   onSeedSamples,
   onLogout,
 }: TopToolbarProps) {
@@ -165,6 +173,16 @@ export function TopToolbar({
 
               <button
                 type="button"
+                aria-label="Share shelf"
+                title="Share shelf"
+                onClick={onShareShelf}
+                className={`inline-flex items-center justify-center rounded-lg border w-9 h-9 shrink-0 transition cursor-pointer ${secondaryBtnClass}`}
+              >
+                <Share2 className="w-4 h-4 text-[#c49849]" />
+              </button>
+
+              <button
+                type="button"
                 onClick={onOpenCustomizer}
                 data-testid="open-customizer-btn"
                 aria-label="Customize bookshelf"
@@ -237,6 +255,7 @@ export function TopToolbar({
                     </button>
                   )}
 
+                  <LibraryBackupActions onRestore={onLibraryRestore} onToast={onToast} />
                   <button
                     type="button"
                     role="menuitem"

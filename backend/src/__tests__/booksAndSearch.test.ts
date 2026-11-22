@@ -95,6 +95,7 @@ describe('Phase 3 & 4: Book Search, Normalization, CRUD, Reorder & Security', ()
 
   beforeAll(async () => {
     dbPath = path.join(os.tmpdir(), `bookshelf-books-test-${Date.now()}.db`);
+    fs.writeFileSync(dbPath, '', { flag: 'wx' });
     const dbUrl = `file:${dbPath}`;
     execSync('npx prisma db push --skip-generate', {
       cwd: path.resolve(process.cwd()),
@@ -107,8 +108,8 @@ describe('Phase 3 & 4: Book Search, Normalization, CRUD, Reorder & Security', ()
   });
 
   afterAll(async () => {
-    await app.close();
-    await prisma.$disconnect();
+    await app?.close();
+    await prisma?.$disconnect();
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
   });
 

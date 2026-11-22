@@ -8,9 +8,11 @@ import fastifyStatic from '@fastify/static';
 import type { PrismaClient } from '@prisma/client';
 import { getConfig } from './config/env.js';
 import { getPrismaClient } from './lib/prisma.js';
+import { MAX_BOOK_IMAGE_BYTES } from './lib/bookImages.js';
 import { AppError } from './lib/httpErrors.js';
 import { attachSessionUser } from './plugins/auth.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerLibraryBackupRoutes } from './routes/libraryBackup.js';
 import { registerBookshelfRoutes } from './routes/bookshelf.js';
 import { registerBookRoutes } from './routes/books.js';
 import { registerCoverProxyRoutes } from './routes/covers.js';
@@ -50,7 +52,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(multipart, {
     limits: {
-      fileSize: 8 * 1024 * 1024, // 8 MB max image upload
+      fileSize: MAX_BOOK_IMAGE_BYTES,
       files: 1,
     },
   });
@@ -70,7 +72,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }
 
   app.addHook('preHandler', async (request, reply) => {
-    await attachSessionUser(prisma, request, reply);
+    if (!request.authUser) await attachSessionUser(prisma, request, reply);
   });
 
   app.setErrorHandler((error, _request, reply) => {
@@ -116,6 +118,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerAuthRoutes(app, prisma);
   await registerBookshelfRoutes(app, prisma);
+  await registerLibraryBackupRoutes(app, prisma);
   await registerBookRoutes(app, prisma, searchService);
   await registerShelfScanRoutes(app, shelfScanService);
   await registerCoverProxyRoutes(app);

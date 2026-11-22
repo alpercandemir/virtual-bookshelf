@@ -58,7 +58,9 @@ export function serializeBook(record: {
   metadata: string;
 }): BookDto {
   const authors = safeJsonParse<string[]>(record.authors, []);
-  const metadata = safeJsonParse<BookMetadata>(record.metadata, {});
+  const { restoredProviderBookId, ...metadata } = safeJsonParse<
+    BookMetadata & { restoredProviderBookId?: string | null }
+  >(record.metadata, {});
   const physicalDimensions = safeJsonParse<PhysicalDimensions>(
     record.physicalDimensions,
     resolvePhysicalDimensions({
@@ -71,7 +73,7 @@ export function serializeBook(record: {
   return {
     id: record.id,
     provider: record.provider as BookProvider,
-    providerBookId: record.providerBookId,
+    providerBookId: record.providerBookId ?? restoredProviderBookId ?? null,
     isbn: record.isbn,
     title: record.title,
     authors,

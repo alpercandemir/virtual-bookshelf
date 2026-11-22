@@ -19,6 +19,7 @@ import { AuthScreen } from './components/auth/AuthScreen';
 import { TopToolbar } from './components/layout/TopToolbar';
 import { ToastRegion } from './components/layout/ToastRegion';
 import { Bookshelf } from './components/bookshelf/Bookshelf';
+import { ShareShelfDialog } from './components/bookshelf/ShareShelfDialog';
 import { AllShelvesOverview } from './components/bookshelf/AllShelvesOverview';
 import {
   ShelfCustomizerDrawer,
@@ -87,19 +88,20 @@ function LibraryWorkspace() {
   );
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [createShelfOpen, setCreateShelfOpen] = useState(false);
+  const [sharingShelf, setSharingShelf] = useState<BookshelfDto | null>(null);
   const [libraryFindOpen, setLibraryFindOpen] = useState(false);
 
   // Global ⌘K / Ctrl+K shortcut for Find in My Library
   useEffect(() => {
     const onGlobalKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (!sharingShelf && !searchOpen && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setLibraryFindOpen((v) => !v);
       }
     };
     window.addEventListener('keydown', onGlobalKey);
     return () => window.removeEventListener('keydown', onGlobalKey);
-  }, []);
+  }, [sharingShelf, searchOpen]);
 
   // Keyboard Left/Right arrows switch bookshelves in Single Shelf Mode when no dialog/input is active
   useEffect(() => {
@@ -111,7 +113,8 @@ function LibraryWorkspace() {
         searchOpen ||
         customizerOpen ||
         createShelfOpen ||
-        libraryFindOpen
+        libraryFindOpen ||
+        sharingShelf
       ) {
         return;
       }
@@ -133,6 +136,7 @@ function LibraryWorkspace() {
     customizerOpen,
     createShelfOpen,
     libraryFindOpen,
+    sharingShelf,
     goToPrevShelf,
     goToNextShelf,
   ]);
@@ -298,6 +302,9 @@ function LibraryWorkspace() {
           setSearchOpen(true);
         }}
         onOpenCustomizer={() => setCustomizerOpen(true)}
+        onShareShelf={() => setSharingShelf(bookshelf)}
+        onLibraryRestore={refreshBookshelf}
+        onToast={pushToast}
         onSeedSamples={() => seedSamples(bookshelf.id)}
         onLogout={logout}
       />
@@ -313,6 +320,7 @@ function LibraryWorkspace() {
               selectBookshelf(id, false);
               setCustomizerOpen(true);
             }}
+            onShareShelf={setSharingShelf}
             onCreateShelf={() => setCreateShelfOpen(true)}
             onReorderShelves={reorderBookshelves}
             onDeleteShelf={deleteBookshelf}
@@ -498,6 +506,8 @@ function LibraryWorkspace() {
           </p>
         </main>
       )}
+
+      {sharingShelf && <ShareShelfDialog shelf={sharingShelf} onClose={() => setSharingShelf(null)} />}
 
       {/* Modals & Drawers */}
       <BookRevealModal

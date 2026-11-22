@@ -80,6 +80,11 @@ export const api = {
       method: 'POST',
     }),
 
+  getLibraryBackup: () => requestJson<unknown>('/api/library/backup'),
+
+  restoreLibraryBackup: (file: File) =>
+    requestJson<{ restoredCount: number }>('/api/library/restore', { method: 'POST', body: file }),
+
   // Bookshelves (Multi-Shelf Support)
   getBookshelves: () =>
     requestJson<{ bookshelves: BookshelfDto[] }>('/api/bookshelves'),

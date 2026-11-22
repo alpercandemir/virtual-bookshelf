@@ -28,6 +28,7 @@ import {
   optimizeShelfPhoto,
   type OptimizedShelfPhoto,
 } from '../../utils/optimizeShelfPhoto';
+import { getOwnership } from '../../utils/ownedBooks';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
 
 interface ShelfPhotoScannerProps {
@@ -40,6 +41,7 @@ interface ShelfPhotoScannerProps {
   ) => Promise<unknown>;
   onToast: (message: string, tone?: 'info' | 'success' | 'error') => void;
   onComplete: () => void;
+  onSavingChange: (saving: boolean) => void;
 }
 
 interface ReviewItemState {
@@ -52,36 +54,13 @@ interface ReviewItemState {
   editingQuery: boolean;
   searching: boolean;
   shelved: boolean;
+  saveError?: string;
 }
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isCandidateOwned(
-  item: ReviewItemState,
-  ownedKeys: Set<string>
-): boolean {
-  const match =
-    item.selectedMatchIndex >= 0
-      ? item.candidate.matches[item.selectedMatchIndex]
-      : undefined;
-
-  if (match) {
-    if (match.isbn && ownedKeys.has(`isbn:${match.isbn.replace(/[^0-9X]/gi, '')}`)) {
-      return true;
-    }
-    if (ownedKeys.has(`pid:${match.providerBookId}`)) {
-      return true;
-    }
-    if (ownedKeys.has(`title:${match.title.trim().toLowerCase()}`)) {
-      return true;
-    }
-  }
-
-  return ownedKeys.has(`title:${item.editedTitle.trim().toLowerCase()}`);
 }
 
 function ConfidenceBadge({ confidence }: { confidence: ScanConfidence }) {
@@ -168,6 +147,7 @@ export function ShelfPhotoScanner({
   onAddBook,
   onToast,
   onComplete,
+  onSavingChange,
 }: ShelfPhotoScannerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -186,6 +166,8 @@ export function ShelfPhotoScanner({
   const [reviewItems, setReviewItems] = useState<ReviewItemState[]>([]);
 
   const [usePhotoSpineColors, setUsePhotoSpineColors] = useState(false);
+  const [keepPhotoLayout, setKeepPhotoLayout] = useState(false);
+  const [rowDestinations, setRowDestinations] = useState<Record<number, string>>({});
   const [overflowNextShelf, setOverflowNextShelf] = useState(true);
   const [shelvingProgress, setShelvingProgress] = useState<{
     current: number;
@@ -252,6 +234,7 @@ export function ShelfPhotoScanner({
     try {
       const result = await api.scanShelfPhoto(optimizedPhoto.file);
       setScanResult(result);
+      setRowDestinations({});
 
       const initialItems: ReviewItemState[] = result.books.map((candidate) => {
         const defaultMatchIndex = candidate.matches.length > 0 ? 0 : -1;
@@ -265,10 +248,11 @@ export function ShelfPhotoScanner({
           searching: false,
           shelved: false,
         };
-        const alreadyOwned = isCandidateOwned(draft, ownedKeys);
+        const match = candidate.matches[defaultMatchIndex];
+        const ownership = getOwnership(ownedKeys, match?.title ?? draft.editedTitle, match);
         // Auto-select confident non-duplicate books; leave duplicates & low-confidence unmatched unchecked for review
         const shouldAutoSelect =
-          !alreadyOwned &&
+          ownership !== 'owned' &&
           (candidate.matches.length > 0 || candidate.confidence !== 'low');
         return {
           ...draft,
@@ -346,22 +330,34 @@ export function ShelfPhotoScanner({
     );
   };
 
-  const handleShelveSelected = async () => {
-    if (selectedItems.length === 0) return;
+  const allCompartments = bookshelf.compartments;
+  const startIndex = Math.max(0, allCompartments.findIndex((c) => c.id === targetCompartmentId));
+  const compartmentOrder = [...allCompartments.slice(startIndex), ...allCompartments.slice(0, startIndex)];
+  const fallbackDestinations = compartmentOrder.map((c) => c.id);
+  const destinationRows = [...new Set(allCompartments.map((c) => c.row))];
+  const photoRows = [...new Set(reviewItems.map((item) => item.candidate.shelfRow))];
+  const startRowIndex = destinationRows.indexOf(compartmentOrder[0]?.row);
+  const destinationForRow = (row: number) => {
+    const offset = photoRows.indexOf(row);
+    const defaultRow = destinationRows[startRowIndex + offset];
+    const defaultId = offset === 0
+      ? compartmentOrder[0]?.id
+      : allCompartments.find((c) => c.row === defaultRow)?.id;
+    const selectedId = rowDestinations[row] ?? defaultId;
+    return allCompartments.find((c) => c.id === selectedId)?.id ?? '';
+  };
+  const missingDestination = keepPhotoLayout && selectedItems.some(
+    (item) => !destinationForRow(item.candidate.shelfRow)
+  );
 
-    const compartmentOrder = (() => {
-      const allIds = bookshelf.compartments.map((c) => c.id);
-      if (!targetCompartmentId || !allIds.includes(targetCompartmentId)) {
-        return allIds;
-      }
-      const startIdx = allIds.indexOf(targetCompartmentId);
-      return [...allIds.slice(startIdx), ...allIds.slice(0, startIdx)];
-    })();
+  const handleShelveSelected = async () => {
+    if (selectedItems.length === 0 || missingDestination || shelvingProgress) return;
 
     let compCursor = 0;
     let addedCount = 0;
-    let failedCount = 0;
+    const failed = new Map<string, string>();
 
+    onSavingChange(true);
     setShelvingProgress({ current: 0, total: selectedItems.length });
 
     for (let i = 0; i < selectedItems.length; i++) {
@@ -380,7 +376,7 @@ export function ShelfPhotoScanner({
       } else if (activeMatch?.coverUrl) {
         const proxied = getProxiedCoverUrl(activeMatch.coverUrl);
         if (proxied) {
-          const extracted = await extractCoverPaletteFromUrl(proxied);
+          const extracted = await extractCoverPaletteFromUrl(proxied).catch(() => null);
           if (extracted) {
             visualOverrides = {
               spineColor: extracted.primary,
@@ -430,64 +426,55 @@ export function ShelfPhotoScanner({
             format: 'hardcover',
           };
 
-      let placed = false;
-      while (compCursor < compartmentOrder.length) {
-        const compId = compartmentOrder[compCursor];
+      const destinationIds = keepPhotoLayout
+        ? [destinationForRow(item.candidate.shelfRow)]
+        : fallbackDestinations;
+      let destinationIndex = keepPhotoLayout ? 0 : compCursor;
+      const scanId = item.candidate.scanId;
+      while (destinationIndex < destinationIds.length) {
         try {
           await onAddBook(
             {
-              compartmentId: compId,
+              compartmentId: destinationIds[destinationIndex],
               book: bookPayload,
               visualOverrides,
             },
             { silent: true }
           );
-          placed = true;
           addedCount += 1;
-          updateItem(item.candidate.scanId, (prev) => ({
+          updateItem(scanId, (prev) => ({
             ...prev,
             shelved: true,
             selected: false,
+            saveError: undefined,
           }));
           break;
         } catch (err) {
-          if (
-            err instanceof ApiError &&
-            err.code === 'SHELF_FULL' &&
-            overflowNextShelf &&
-            compCursor + 1 < compartmentOrder.length
-          ) {
-            compCursor += 1;
+          const full = err instanceof ApiError && err.code === 'SHELF_FULL';
+          if (full && !keepPhotoLayout && overflowNextShelf && destinationIndex + 1 < destinationIds.length) {
+            destinationIndex += 1;
+            compCursor = destinationIndex;
             continue;
           }
-          failedCount += 1;
+          failed.set(scanId, full
+            ? 'This book does not fit in the destination. Choose another compartment and retry.'
+            : err instanceof ApiError ? err.message : 'Could not save this book. Try again.');
           break;
         }
       }
-
-      if (!placed && compCursor >= compartmentOrder.length) {
-        failedCount += 1;
-      }
     }
 
+    setReviewItems((prev) => prev.map((item) =>
+      failed.has(item.candidate.scanId) ? { ...item, saveError: failed.get(item.candidate.scanId) } : item
+    ));
     setShelvingProgress(null);
+    onSavingChange(false);
 
-    if (addedCount > 0 && failedCount === 0) {
-      onToast(
-        `Shelved ${addedCount} ${addedCount === 1 ? 'book' : 'books'} from your shelf photo!`,
-        'success'
-      );
+    if (failed.size > 0) {
+      onToast(`Shelved ${addedCount} of ${selectedItems.length} books. Review the remaining books and retry.`, 'info');
+    } else if (addedCount > 0) {
+      onToast(`Shelved ${addedCount} ${addedCount === 1 ? 'book' : 'books'} from your shelf photo!`, 'success');
       onComplete();
-    } else if (addedCount > 0 && failedCount > 0) {
-      onToast(
-        `Shelved ${addedCount} books. ${failedCount} could not fit — try adding a shelf level.`,
-        'info'
-      );
-    } else {
-      onToast(
-        'Could not shelve selected books. The target shelf may be full.',
-        'error'
-      );
     }
   };
 
@@ -714,7 +701,7 @@ export function ShelfPhotoScanner({
       </div>
 
       {/* Review List Body */}
-      <div className="flex-1 overflow-y-auto library-scroll p-4 sm:p-5 space-y-3">
+      <fieldset disabled={Boolean(shelvingProgress)} className="min-w-0 flex-1 overflow-y-auto library-scroll p-4 sm:p-5 space-y-3">
         {scanResult.notice && reviewItems.length === 0 ? (
           <div className="rounded-xl border ui-surface-card p-6 text-center space-y-3">
             <p className="text-sm ui-text-primary font-medium">{scanResult.notice}</p>
@@ -768,17 +755,53 @@ export function ShelfPhotoScanner({
                   Use photo spine colors
                 </label>
 
-                <label className="inline-flex items-center gap-1.5 text-[11px] ui-text-secondary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={overflowNextShelf}
-                    onChange={(e) => setOverflowNextShelf(e.target.checked)}
-                    className="accent-[#cfa458]"
-                  />
-                  Overflow to next shelf if full
-                </label>
+                {photoRows.length > 1 && (
+                  <label className="inline-flex items-center gap-1.5 text-[11px] ui-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={keepPhotoLayout}
+                      onChange={(e) => setKeepPhotoLayout(e.target.checked)}
+                      className="accent-[#cfa458]"
+                    />
+                    Keep photo layout
+                  </label>
+                )}
+
+                {!keepPhotoLayout && (
+                  <label className="inline-flex items-center gap-1.5 text-[11px] ui-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={overflowNextShelf}
+                      onChange={(e) => setOverflowNextShelf(e.target.checked)}
+                      className="accent-[#cfa458]"
+                    />
+                    Try another compartment if full
+                  </label>
+                )}
               </div>
             </div>
+
+            {keepPhotoLayout && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {photoRows.map((row) => (
+                  <label key={row} className="flex items-center gap-2 text-xs ui-text-secondary">
+                    <span className="shrink-0">Photo row {row}</span>
+                    <select
+                      value={destinationForRow(row)}
+                      onChange={(e) => setRowDestinations({ ...rowDestinations, [row]: e.target.value })}
+                      className="min-w-0 flex-1 rounded ui-surface-input border px-2 py-1.5 text-base sm:text-xs"
+                    >
+                      <option value="">Choose compartment</option>
+                      {allCompartments.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          Level {c.row + 1} · {c.settings.label || `Column ${c.column + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            )}
 
             {/* Detected Book Cards */}
             <div className="space-y-2.5" data-testid="scanned-books-list">
@@ -794,7 +817,7 @@ export function ShelfPhotoScanner({
                   (item.editedAuthor
                     ? item.editedAuthor.split(',').map((a) => a.trim())
                     : []);
-                const alreadyOwned = isCandidateOwned(item, ownedKeys);
+                const ownership = getOwnership(ownedKeys, displayTitle, activeMatch);
 
                 return (
                   <div
@@ -865,9 +888,9 @@ export function ShelfPhotoScanner({
                               />
                             )}
                             <ConfidenceBadge confidence={candidate.confidence} />
-                            {alreadyOwned && !item.shelved && (
+                            {ownership && !item.shelved && (
                               <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/40 px-1.5 py-0.2 text-[9px] font-medium text-amber-500">
-                                In Library
+                                {ownership === 'owned' ? 'Owned edition' : 'Possible match'}
                               </span>
                             )}
                             {item.shelved && (
@@ -877,6 +900,8 @@ export function ShelfPhotoScanner({
                             )}
                           </div>
                         </div>
+
+                        {item.saveError && <p className="text-xs text-red-500" role="alert">{item.saveError}</p>}
 
                         {/* Match Selector + Re-search Trigger */}
                         {!item.shelved && (
@@ -972,20 +997,22 @@ export function ShelfPhotoScanner({
             </div>
           </>
         )}
-      </div>
+      </fieldset>
 
       {/* Sticky Footer Action Bar */}
       {reviewItems.length > 0 && (
         <div className="px-4 sm:px-6 py-3 border-t ui-surface-header flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs ui-text-secondary">
+          <p className="text-xs ui-text-secondary" aria-live="polite">
             {shelvingProgress
               ? `Shelving ${shelvingProgress.current} of ${shelvingProgress.total}…`
-              : `${selectedItems.length} of ${reviewItems.length} selected to shelve`}
+              : missingDestination
+                ? 'Choose a compartment for each selected photo row.'
+                : `${selectedItems.length} of ${reviewItems.length} selected to shelve`}
           </p>
 
           <button
             type="button"
-            disabled={selectedItems.length === 0 || Boolean(shelvingProgress)}
+            disabled={selectedItems.length === 0 || missingDestination || Boolean(shelvingProgress)}
             data-testid="shelve-scanned-books-btn"
             onClick={handleShelveSelected}
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#cfa458] to-[#a77a32] hover:from-[#dbb268] hover:to-[#b5873c] text-[#1a1107] font-semibold text-xs sm:text-sm px-4 py-2 shadow transition cursor-pointer disabled:opacity-50"

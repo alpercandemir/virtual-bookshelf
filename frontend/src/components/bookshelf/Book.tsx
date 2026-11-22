@@ -20,13 +20,6 @@ export interface BookVisualProps {
   dragHandleProps?: Record<string, unknown>;
 }
 
-function extractAuthorLabel(authors: string[]): string {
-  if (!authors.length) return '';
-  const first = authors[0].trim();
-  const parts = first.split(/\s+/);
-  return parts.length > 1 ? parts[parts.length - 1] : first;
-}
-
 function getPublisherMonogram(publisher: string | null, title: string): string {
   const src = (publisher || title || 'L').trim();
   const letters = src
@@ -70,10 +63,20 @@ export const BookVisual = React.memo(function BookVisual({
     [book, visualOverrides]
   );
 
-  const isLightSpine = useMemo(
-    () => relativeLuminance(appearance.primaryColor) > 0.38,
-    [appearance.primaryColor]
-  );
+  const spineTextColor = useMemo(() => {
+    if (visualOverrides.textColor) return visualOverrides.textColor;
+    const backgrounds = [appearance.primaryColor, appearance.secondaryColor].map(relativeLuminance);
+    const contrast = (color: string) => {
+      const luminance = relativeLuminance(color);
+      return Math.min(...backgrounds.map((bg) =>
+        (Math.max(bg, luminance) + 0.05) / (Math.min(bg, luminance) + 0.05)
+      ));
+    };
+    return [appearance.textColor, '#fff8ec', '#17100a'].reduce((best, color) =>
+      contrast(best) >= 4.5 || contrast(best) >= contrast(color) ? best : color
+    );
+  }, [appearance, visualOverrides.textColor]);
+  const darkSpineText = relativeLuminance(spineTextColor) < 0.25;
 
   const isHardcover = appearance.bindingStyle !== 'paperback';
   const isFaceOut = orientation === 'face-out';
@@ -88,20 +91,18 @@ export const BookVisual = React.memo(function BookVisual({
   const coverSrc = getProxiedCoverUrl(appearance.customCoverUrl || book.coverUrl);
   const spineImageSrc = getProxiedCoverUrl(appearance.customSpineUrl);
 
-  // Typography sizing tuned to spine width, height, and title length so full titles stay legible
-  const titleFontSize = useMemo(() => {
-    const w = px.spineWidthPx;
-    const len = book.title.length;
-    if (w >= 46) return len > 28 ? 11 : len > 18 ? 12.5 : 14;
-    if (w >= 36) return len > 26 ? 10 : len > 16 ? 11.5 : 12.5;
-    if (w >= 29) return len > 22 ? 9.5 : 10.5;
-    return len > 20 ? 8.5 : 9.5;
-  }, [px.spineWidthPx, book.title.length]);
-
-  const showAuthorOnSpine =
-    !isFaceOut && px.spineWidthPx >= 32 && px.heightPx >= 182 && book.authors.length > 0;
-  const showMonogram = !isFaceOut && px.spineWidthPx >= 28 && px.heightPx >= 178;
-  const authorShort = extractAuthorLabel(book.authors);
+  const wideSpine = px.spineWidthPx >= 32;
+  const showMonogram = px.spineWidthPx >= 44 && px.heightPx >= 182;
+  const authorName = book.authors[0]?.trim();
+  const labelHeight = px.heightPx - (showMonogram ? 38 : 24);
+  const authorHeight = !wideSpine && authorName
+    ? Math.min(labelHeight * 0.45, authorName.length * 5.5) + 5
+    : 0;
+  const maxTitleSize = px.spineWidthPx >= 44 ? 16 : wideSpine ? 14 : 12;
+  const titleFontSize = Math.max(11, Math.min(
+    maxTitleSize,
+    (labelHeight - authorHeight) / (book.title.length * 0.63)
+  ));
   const monogram = getPublisherMonogram(book.publisher, book.title);
 
   const fontClass =
@@ -314,52 +315,35 @@ export const BookVisual = React.memo(function BookVisual({
 
             {/* Spine Typography (Hidden when user uploaded a custom spine image) */}
             {!spineImageSrc && (
-              <div className="book-spine-text-wrap gap-1.5">
-                {/* Small Author Label at Top when spine width permits */}
-                {showAuthorOnSpine ? (
-                  <span
-                    className="book-spine-vertical-title uppercase opacity-80 shrink-0"
-                    data-light-bg={isLightSpine ? 'true' : undefined}
-                    style={{
-                      fontSize: '7.5px',
-                      letterSpacing: '0.1em',
-                      maxHeight: '22%',
-                      color: appearance.accentColor,
-                    }}
-                  >
-                    {authorShort}
-                  </span>
-                ) : (
-                  <span className="h-0.5 shrink-0" />
-                )}
-
-                {/* Main Book Title (uses all remaining vertical flex height!) */}
-                <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden py-0.5">
+              <div
+                className="book-spine-text-wrap"
+                data-dark-text={darkSpineText || undefined}
+                style={{ color: spineTextColor }}
+              >
+                <div className="book-spine-labels" data-wide={wideSpine || undefined}>
                   <span
                     className={`book-spine-vertical-title ${fontClass}`}
-                    data-light-bg={isLightSpine ? 'true' : undefined}
-                    style={{
-                      fontSize: `${titleFontSize}px`,
-                      color: appearance.textColor,
-                    }}
+                    style={{ fontSize: titleFontSize }}
                   >
                     {book.title}
                   </span>
+                  {authorName && (
+                    <span className="book-spine-vertical-title book-spine-author font-sans">
+                      {authorName}
+                    </span>
+                  )}
                 </div>
-
-                {/* Publisher / Collection Colophon Monogram at Foot */}
-                {showMonogram ? (
+                {showMonogram && (
                   <span
                     className="text-[7px] font-display font-bold tracking-widest opacity-75 shrink-0"
                     style={{ color: appearance.accentColor }}
                   >
                     {monogram}
                   </span>
-                ) : (
-                  <span className="h-0.5 shrink-0" />
                 )}
               </div>
             )}
+
           </>
         )}
       </button>
