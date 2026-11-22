@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import type { BookshelfDto } from '@bookshelf/shared';
+import { Download, Loader2, Share2, X } from 'lucide-react';
+import { getRoomThemeMeta, type BookshelfDto } from '@bookshelf/shared';
 import { downloadFile } from '../../utils/downloadFile';
+import { Bookshelf } from './Bookshelf';
 
 export function ShareShelfDialog({
   shelf,
@@ -11,41 +12,67 @@ export function ShareShelfDialog({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const preview = useRef<HTMLTextAreaElement>(null);
-  const [status, setStatus] = useState('');
+  const shelfImage = useRef<HTMLDivElement>(null);
+  const [image, setImage] = useState<{ file: File; url: string } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [captureFailed, setCaptureFailed] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState('');
+  const room = getRoomThemeMeta(shelf.roomTheme);
 
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
 
-  const books = shelf.compartments.flatMap((compartment) => compartment.books);
-  const shareText = [
-    shelf.name,
-    '',
-    ...books.map(({ book }) =>
-      book.authors.length ? `• ${book.title} — ${book.authors.join(', ')}` : `• ${book.title}`
-    ),
-  ].join('\n');
+  useEffect(() => {
+    if (image) return;
+    const target = shelfImage.current;
+    if (!target) return;
+    let cancelled = false;
 
-  const copyList = async () => {
-    try {
-      await navigator.clipboard.writeText(shareText);
-      setStatus('Book list copied.');
-    } catch {
-      preview.current?.focus();
-      preview.current?.select();
-      setStatus('Book list selected. Use your device’s Copy command.');
-    }
-  };
+    const prepareImage = async () => {
+      try {
+        const { toBlob } = await import('html-to-image');
+        await document.fonts.ready;
+        if (cancelled) return;
 
-  const shareList = async () => {
+        const blob = await toBlob(target, {
+          includeQueryParams: true,
+          preferredFontFormat: 'woff2',
+          pixelRatio: Math.min(2, 3000 / target.offsetHeight),
+          filter: (node) => !node.classList?.contains('book-hover-tooltip'),
+        });
+        if (cancelled) return;
+        if (!blob?.size) throw new Error('Empty shelf image');
+
+        const name = shelf.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+        const file = new File([blob], `${name || 'bookshelf'}.png`, { type: 'image/png' });
+        setImage({ file, url: URL.createObjectURL(file) });
+      } catch {
+        if (!cancelled) setCaptureFailed(true);
+      }
+    };
+    void prepareImage();
+    return () => {
+      cancelled = true;
+    };
+  }, [shelf.name, image, attempt]);
+
+  useEffect(() => {
+    if (image) return () => URL.revokeObjectURL(image.url);
+  }, [image]);
+
+  const canShare = image && navigator.canShare?.({ files: [image.file] });
+
+  const shareImage = async () => {
+    if (!image) return;
     setSharing(true);
+    setShareError('');
     try {
-      await navigator.share({ title: shelf.name, text: shareText });
+      await navigator.share({ files: [image.file], title: shelf.name });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
-        setStatus('Sharing is unavailable. You can copy or download the list.');
+        setShareError('Sharing is unavailable. Download the image to send it.');
       }
     } finally {
       setSharing(false);
@@ -57,7 +84,7 @@ export function ShareShelfDialog({
       aria-labelledby="share-shelf-heading"
       ref={dialog}
       onClose={onClose}
-      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border ui-surface-panel p-5 shadow-2xl backdrop:bg-black/70"
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border ui-surface-panel p-5 shadow-2xl backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 id="share-shelf-heading" className="font-display text-2xl font-semibold ui-text-primary">
@@ -67,33 +94,66 @@ export function ShareShelfDialog({
           <X className="h-5 w-5" />
         </button>
       </div>
-      <p className="mt-1 text-sm ui-text-secondary">Share the shelf name, book titles, and authors.</p>
-      <textarea
-        ref={preview}
-        aria-label="Book list preview"
-        value={shareText}
-        readOnly
-        rows={8}
-        className="my-4 w-full rounded-lg border ui-surface-input p-3 text-sm ui-text-primary"
-      />
-      <div className="flex flex-wrap gap-2">
-        {typeof navigator.share === 'function' && (
-          <button type="button" disabled={sharing} onClick={shareList} className="rounded-lg bg-[#cfa458] px-3 py-2 text-sm font-semibold text-[#1a1107] cursor-pointer">
-            Share book list
-          </button>
-        )}
-        <button type="button" onClick={copyList} className="rounded-lg border ui-surface-input px-3 py-2 text-sm ui-text-primary cursor-pointer">
-          Copy list
-        </button>
-        <button
-          type="button"
-          onClick={() => downloadFile(new Blob([shareText], { type: 'text/plain;charset=utf-8' }), 'bookshelf.txt')}
-          className="rounded-lg border ui-surface-input px-3 py-2 text-sm ui-text-primary cursor-pointer"
-        >
-          Download list
-        </button>
-      </div>
-      {status && <p role="status" className="mt-3 text-sm ui-text-secondary">{status}</p>}
+
+      {!image && (
+        <>
+          <div aria-hidden="true" inert className="fixed -left-[12000px] top-0">
+            <div
+              ref={shelfImage}
+              className="library-room w-[1040px] !min-h-0 pt-6"
+              data-room-theme={shelf.roomTheme}
+              data-room-mode={room.mode}
+            >
+              <h3 className="px-8 text-center font-display text-3xl font-semibold">{shelf.name}</h3>
+              <Bookshelf bookshelf={shelf} onSelectBook={() => undefined} />
+            </div>
+          </div>
+          {captureFailed ? (
+            <div className="mt-4">
+              <p role="alert" className="text-sm ui-text-secondary">Could not generate the shelf image.</p>
+              <button type="button" onClick={() => {
+                setCaptureFailed(false);
+                setAttempt((previous) => previous + 1);
+              }} className="mt-3 rounded-lg border ui-surface-input px-3 py-2 text-sm cursor-pointer">
+                Try again
+              </button>
+            </div>
+          ) : (
+            <p role="status" className="my-8 flex items-center justify-center gap-2 text-sm ui-text-secondary">
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+              Preparing shelf image…
+            </p>
+          )}
+        </>
+      )}
+
+      {image && (
+        <>
+          <img src={image.url} alt={`Image of ${shelf.name}`} className="my-4 max-h-[55dvh] w-full rounded-lg object-contain" />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => downloadFile(image.file, image.file.name)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#cfa458] px-3 py-2 text-sm font-semibold text-[#1a1107] cursor-pointer"
+            >
+              <Download aria-hidden="true" className="h-4 w-4" />
+              Download PNG
+            </button>
+            {canShare && (
+              <button
+                type="button"
+                disabled={sharing}
+                onClick={shareImage}
+                className="inline-flex items-center gap-2 rounded-lg border ui-surface-input px-3 py-2 text-sm cursor-pointer disabled:opacity-50"
+              >
+                <Share2 aria-hidden="true" className="h-4 w-4" />
+                Share image
+              </button>
+            )}
+          </div>
+          {shareError && <p role="status" className="mt-3 text-sm ui-text-secondary">{shareError}</p>}
+        </>
+      )}
     </dialog>
   );
 }
