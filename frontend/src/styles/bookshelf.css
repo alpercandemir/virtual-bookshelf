@@ -946,31 +946,12 @@
   text-shadow: 0 0 2px rgba(255, 250, 238, 0.65);
 }
 
-.book-spine-labels {
+.book-spine-title-area {
   display: flex;
   flex: 1;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   min-height: 0;
-}
-
-.book-spine-labels[data-wide="true"] {
-  flex-direction: row;
-  gap: 2px;
-}
-
-.book-spine-author {
-  flex-shrink: 0;
-  font-size: 9px;
-  font-weight: 650;
-  max-height: 45%;
-}
-
-.book-spine-labels[data-wide="true"] .book-spine-author {
-  font-size: 10px;
-  max-height: 100%;
 }
 
 /* ==========================================================================

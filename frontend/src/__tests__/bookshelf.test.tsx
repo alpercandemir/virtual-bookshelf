@@ -84,7 +84,7 @@ function makeBookshelf(bookCount: number): BookshelfDto {
 }
 
 describe('<Bookshelf /> component', () => {
-  it('renders distinct book heights and spine thicknesses and fires onSelectBook', () => {
+  it('shows titles on spines and full authors in tooltips', () => {
     const shelf = makeBookshelf(2);
     shelf.compartments[0].books = [
       makeShelfBook(0, 'comp-0', {
@@ -118,11 +118,16 @@ describe('<Bookshelf /> component', () => {
 
     const slimBtn = screen.getByTestId('book-spine-sb-0');
     const epicBtn = screen.getByTestId('book-spine-sb-1');
-    expect(within(slimBtn).getByText('Ursula K. Le Guin')).toBeVisible();
-    expect(within(epicBtn).getByText('Frank Herbert')).toBeVisible();
+    expect(within(slimBtn).getByText('Slim Poetry')).toBeVisible();
+    expect(within(slimBtn).queryByText('Ursula K. Le Guin')).not.toBeInTheDocument();
+    expect(slimBtn).toHaveAccessibleName(/Ursula K\. Le Guin/);
+    expect(within(epicBtn).getByText('Epic History')).toBeVisible();
+    expect(within(epicBtn).queryByText('Frank Herbert')).not.toBeInTheDocument();
 
     const slimSlot = slimBtn.closest('.book-slot') as HTMLElement;
     const epicSlot = epicBtn.closest('.book-slot') as HTMLElement;
+    expect(within(within(slimSlot).getByRole('tooltip')).getByText('Ursula K. Le Guin')).toBeVisible();
+    expect(within(within(epicSlot).getByRole('tooltip')).getByText('Frank Herbert')).toBeVisible();
     expect(parseInt(epicSlot.style.width, 10)).toBeGreaterThan(
       parseInt(slimSlot.style.width, 10)
     );
