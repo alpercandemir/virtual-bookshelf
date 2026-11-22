@@ -68,7 +68,8 @@ interface BookshelfContextValue {
   resetLayout: (targetId?: string) => Promise<void>;
   seedSamples: (targetId?: string) => Promise<void>;
   addBookToShelf: (
-    payload: Parameters<typeof api.addBook>[0]
+    payload: Parameters<typeof api.addBook>[0],
+    options?: { silent?: boolean }
   ) => Promise<ShelfBookDto>;
   updateShelfBook: (
     shelfBookId: string,
@@ -289,7 +290,10 @@ export function BookshelfProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addBookToShelf = useCallback(
-    async (payload: Parameters<typeof api.addBook>[0]) => {
+    async (
+      payload: Parameters<typeof api.addBook>[0],
+      options?: { silent?: boolean }
+    ) => {
       const res = await api.addBook({
         bookshelfId: payload.bookshelfId ?? bookshelf?.id,
         ...payload,
@@ -299,7 +303,9 @@ export function BookshelfProvider({ children }: { children: React.ReactNode }) {
       window.setTimeout(() => {
         setRecentlyAddedId((curr) => (curr === res.addedShelfBook.id ? null : curr));
       }, 1500);
-      pushToast(`Shelved "${res.addedShelfBook.book.title}".`, 'success');
+      if (!options?.silent) {
+        pushToast(`Shelved "${res.addedShelfBook.book.title}".`, 'success');
+      }
       return res.addedShelfBook;
     },
     [bookshelf?.id, replaceShelfInState, pushToast]

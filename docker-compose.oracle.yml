@@ -16,6 +16,8 @@ services:
       COOKIE_SECURE: "true"
       SESSION_TTL_DAYS: "365"
       GOOGLE_BOOKS_API_KEY: "${GOOGLE_BOOKS_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.5-flash-lite}"
     volumes:
       - honeybooks_data:/data
     networks:

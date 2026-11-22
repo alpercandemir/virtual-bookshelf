@@ -52,6 +52,17 @@ Find any volume across all your bookshelves in milliseconds—filter by title, a
 
 <img src="docs/screenshots/library-search-palette.png" alt="Command-K Global Library Search Palette" width="100%" />
 
+<br />
+
+### 📸 Scan Real Shelf Photos (Gemini Flash-Lite)
+Catalog an entire physical bookshelf in seconds instead of typing titles one by one. Open **Add Book → Scan Photo** and drop a photo of your real bookcase:
+
+1. **Client-Side Optimization:** Your browser automatically downscales the photo (max 1600px, JPEG) before uploading—cutting payload size and keeping Gemini free-tier token usage minimal.
+2. **Spine Recognition & Catalog Matching:** **Gemini Flash-Lite** (`gemini-3.5-flash-lite` by default) reads spines top-to-bottom, left-to-right, extracts titles, authors, and dominant spine colors, and matches each book against Google Books / Open Library.
+3. **Interactive Review & Batch Shelving:** Inspect every detected volume before anything touches your shelf—swap editions, fix a misread title via zero-token inline catalog re-search, auto-skip duplicates (`In Library`), optionally keep the real photo's spine colors, and shelve the whole row in photo order with automatic shelf overflow.
+
+> **Example workflow:** Snap a straight-on photo of a 12-book shelf → *Scan Photo* detects each spine in order (`R1 · #1 Dune`, `R1 · #2 Moby-Dick`, `R1 · #3 Pride and Prejudice`, …) with `High` / `Check` / `Low` confidence badges, auto-unchecks any titles already in your library, and shelves the remaining books in one click. Re-scanning the same photo hits a 15-minute SHA-256 cache for zero extra API calls.
+
 ---
 
 ## 🎯 Craft & Capabilities
@@ -62,7 +73,7 @@ Find any volume across all your bookshelves in milliseconds—filter by title, a
 | **Architectural Rooms & Finishes** | 6 interior room themes (*Antique Study*, *Nordic Minimal*, *Zen Timber*, *Botanical Apothecary*, *Industrial Loft*, *Velvet Salon*), 6 wood/cabinet finishes (*Walnut*, *Mahogany*, *European Oak*, *Nordic Birch*, *Smoked Espresso*, *Matte Charcoal*), and selectable **Heritage** vs. **Modern Minimal** cabinet architecture. |
 | **Customizable Shelf Structure** | Configure 1–6 shelf levels, split any row into 1–3 compartments, dial in shelf heights, engrave custom plaques, and one-click **Auto-Arrange** by title, author, height, or color spectrum. |
 | **Tactile Drag & Drop** | Smooth `dnd-kit` drag-and-drop across compartments and between shelf cards in Overview, with real-time shelf capacity validation and full keyboard accessibility. |
-| **Real Book Discovery** | Search by title, author, or ISBN via Google Books API with automatic circuit-breaker failover to Open Library, edition picker, duplicate detection (`In Library`), batch shelving, cover-to-spine palette extraction, custom cover/spine uploads, and manual cataloging. |
+| **Real Book Discovery** | Search by title, author, or ISBN via Google Books API with automatic circuit-breaker failover to Open Library, edition picker, duplicate detection (`In Library`), batch shelving, **real shelf photo scanning** via Gemini Flash-Lite (`Scan Photo`), cover-to-spine palette extraction, custom cover/spine uploads, and manual cataloging. |
 | **Private Multi-User Accounts** | Self-hosted SQLite storage, `crypto.scrypt` password hashing, HTTP-only session cookies, login rate limiting, and per-user isolated libraries. |
 
 ---
@@ -81,11 +92,13 @@ docker compose ps
 docker compose logs -f bookshelf
 ```
 
-Override the host port or supply an optional Google Books API key:
+Override the host port or supply optional API keys (Google Books & Gemini Vision for shelf photo scanning):
 
 ```bash
-APP_PORT=8088 GOOGLE_BOOKS_API_KEY="your-key" docker compose up -d --build
+APP_PORT=8088 GOOGLE_BOOKS_API_KEY="your-key" GEMINI_API_KEY="your-gemini-key" docker compose up -d --build
 ```
+
+> **Gemini Model:** Shelf photo scanning defaults to `gemini-3.5-flash-lite` (optimized for free-tier speed and efficiency). Override via `GEMINI_MODEL` if desired. If `GEMINI_API_KEY` is omitted, the app runs normally with photo scanning gracefully disabled.
 
 > **HTTPS Reverse Proxy Note:** When deploying behind TLS (Nginx, Caddy, Traefik), set `COOKIE_SECURE=true` and `FRONTEND_ORIGIN=https://your-domain`. See [docker-compose.oracle.yml](docker-compose.oracle.yml) for a production reverse-proxy example.
 

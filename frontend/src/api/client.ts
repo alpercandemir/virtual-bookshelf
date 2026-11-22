@@ -7,6 +7,8 @@ import type {
   RoomTheme,
   SearchResponse,
   ShelfBookDto,
+  ShelfScanResponse,
+  ShelfScanStatusResponse,
   UserDto,
   WoodFinish,
 } from '@bookshelf/shared';
@@ -246,6 +248,19 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     return requestJson<{ url: string }>('/api/uploads/book-image', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  // Shelf Photo Scanning (Gemini Vision)
+  getShelfScanStatus: () =>
+    requestJson<ShelfScanStatusResponse>('/api/books/scan-shelf/status'),
+
+  scanShelfPhoto: async (file: File): Promise<ShelfScanResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return requestJson<ShelfScanResponse>('/api/books/scan-shelf', {
       method: 'POST',
       body: formData,
     });

@@ -5,8 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const BACKEND_ROOT = path.resolve(__dirname, '../..');
 
-function loadDotEnvIfPresent(): void {
-  const envPath = path.join(BACKEND_ROOT, '.env');
+function loadDotEnvFile(envPath: string): void {
   if (!fs.existsSync(envPath)) return;
   const content = fs.readFileSync(envPath, 'utf8');
   for (const rawLine of content.split(/\r?\n/)) {
@@ -28,6 +27,11 @@ function loadDotEnvIfPresent(): void {
   }
 }
 
+function loadDotEnvIfPresent(): void {
+  loadDotEnvFile(path.join(BACKEND_ROOT, '.env'));
+  loadDotEnvFile(path.resolve(BACKEND_ROOT, '..', '.env'));
+}
+
 loadDotEnvIfPresent();
 
 export interface AppConfig {
@@ -39,6 +43,8 @@ export interface AppConfig {
   isProduction: boolean;
   cookieSecure: boolean;
   googleBooksApiKey: string | null;
+  geminiApiKey: string | null;
+  geminiModel: string;
   uploadsDir: string;
   staticDir: string | null;
 }
@@ -59,6 +65,8 @@ export function getConfig(): AppConfig {
     isProduction,
     cookieSecure: process.env.COOKIE_SECURE === 'true',
     googleBooksApiKey: process.env.GOOGLE_BOOKS_API_KEY?.trim() || null,
+    geminiApiKey: process.env.GEMINI_API_KEY?.trim() || null,
+    geminiModel: process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite',
     uploadsDir: process.env.UPLOADS_DIR?.trim() || path.join(BACKEND_ROOT, 'uploads'),
     staticDir,
   };

@@ -14,20 +14,25 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerBookshelfRoutes } from './routes/bookshelf.js';
 import { registerBookRoutes } from './routes/books.js';
 import { registerCoverProxyRoutes } from './routes/covers.js';
+import { registerShelfScanRoutes } from './routes/shelfScan.js';
 import { registerUploadRoutes } from './routes/uploads.js';
 import { BookSearchService } from './services/bookSearchService.js';
+import { ShelfScanService } from './services/shelfScanService.js';
 
 export interface BuildAppOptions {
   prisma?: PrismaClient;
   logger?: boolean;
   disableRateLimit?: boolean;
   searchService?: BookSearchService;
+  shelfScanService?: ShelfScanService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const config = getConfig();
   const prisma = options.prisma ?? getPrismaClient();
   const searchService = options.searchService ?? new BookSearchService();
+  const shelfScanService =
+    options.shelfScanService ?? new ShelfScanService({ searchService });
 
   fs.mkdirSync(config.uploadsDir, { recursive: true });
 
@@ -45,7 +50,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(multipart, {
     limits: {
-      fileSize: 5 * 1024 * 1024, // 5 MB max custom image upload
+      fileSize: 8 * 1024 * 1024, // 8 MB max image upload
       files: 1,
     },
   });
@@ -112,6 +117,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerAuthRoutes(app, prisma);
   await registerBookshelfRoutes(app, prisma);
   await registerBookRoutes(app, prisma, searchService);
+  await registerShelfScanRoutes(app, shelfScanService);
   await registerCoverProxyRoutes(app);
   await registerUploadRoutes(app);
 

@@ -3,6 +3,7 @@ import {
   AlertCircle,
   BookOpen,
   BookPlus,
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -25,6 +26,7 @@ import {
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
+import { ShelfPhotoScanner } from './ShelfPhotoScanner';
 
 interface BookSearchModalProps {
   open: boolean;
@@ -32,8 +34,11 @@ interface BookSearchModalProps {
   bookshelf: BookshelfDto;
   allBookshelves?: BookshelfDto[];
   initialCompartmentId?: string | null;
-  initialTab?: 'search' | 'manual';
-  onAddBook: (payload: Parameters<typeof api.addBook>[0]) => Promise<unknown>;
+  initialTab?: 'search' | 'scan' | 'manual';
+  onAddBook: (
+    payload: Parameters<typeof api.addBook>[0],
+    options?: { silent?: boolean }
+  ) => Promise<unknown>;
   onToast: (message: string, tone?: 'info' | 'success' | 'error') => void;
 }
 
@@ -206,7 +211,7 @@ export function BookSearchModal({
   onAddBook,
   onToast,
 }: BookSearchModalProps) {
-  const [activeTab, setActiveTab] = useState<'search' | 'manual'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'search' | 'scan' | 'manual'>(initialTab);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -453,6 +458,8 @@ export function BookSearchModal({
             <div className="flex items-center gap-2.5">
               {activeTab === 'search' ? (
                 <Search className="w-4 h-4 text-[#c89d54]" />
+              ) : activeTab === 'scan' ? (
+                <Camera className="w-4 h-4 text-[#c89d54]" />
               ) : (
                 <BookPlus className="w-4 h-4 text-[#c89d54]" />
               )}
@@ -477,7 +484,7 @@ export function BookSearchModal({
               <button
                 type="button"
                 onClick={() => setActiveTab('search')}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
                   activeTab === 'search'
                     ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
                     : 'ui-text-secondary hover:ui-text-primary'
@@ -487,12 +494,26 @@ export function BookSearchModal({
                 Search Catalog
               </button>
 
+              <button
+                type="button"
+                data-testid="scan-photo-tab-btn"
+                onClick={() => setActiveTab('scan')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  activeTab === 'scan'
+                    ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
+                    : 'ui-text-secondary hover:ui-text-primary'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Scan Photo
+              </button>
+
               <div className="relative group/manual-tab">
                 <button
                   type="button"
                   onClick={() => switchToManual()}
                   title="If you couldn't find the book in search, you can add it manually here"
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
                     activeTab === 'manual'
                       ? 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm'
                       : 'ui-text-secondary hover:ui-text-primary'
@@ -730,6 +751,15 @@ export function BookSearchModal({
               )}
             </div>
           </>
+        ) : activeTab === 'scan' ? (
+          <ShelfPhotoScanner
+            bookshelf={bookshelf}
+            targetCompartmentId={targetCompartmentId}
+            ownedKeys={ownedKeys}
+            onAddBook={onAddBook}
+            onToast={onToast}
+            onComplete={onClose}
+          />
         ) : (
           /* Integrated Manual Entry Tab */
           <form

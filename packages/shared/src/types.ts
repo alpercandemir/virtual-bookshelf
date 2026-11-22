@@ -219,3 +219,32 @@ export interface SearchResponse {
   fallbackNotice?: string;
   items: SearchBookResult[];
 }
+
+export type ScanConfidence = 'high' | 'medium' | 'low';
+
+export interface ScannedBookCandidate {
+  scanId: string;
+  shelfRow: number;
+  position: number;
+  detectedTitle: string;
+  detectedAuthor: string | null;
+  language: string | null;
+  spineColorHex: string | null;
+  confidence: ScanConfidence;
+  matchStatus: 'matched' | 'unmatched';
+  matches: SearchBookResult[];
+}
+
+export interface ShelfScanResponse {
+  model: string;
+  cached: boolean;
+  detectedCount: number;
+  matchedCount: number;
+  books: ScannedBookCandidate[];
+  notice?: string;
+}
+
+export interface ShelfScanStatusResponse {
+  enabled: boolean;
+  model: string | null;
+}
