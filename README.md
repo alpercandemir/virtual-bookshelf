@@ -31,31 +31,7 @@ This is a **personal hobby project** built for fun to have a nicer place to keep
 
 ## ✨ The Fun Stuff
 
-### 📸 Snap a Real Shelf Photo, Shelve the Whole Row *(Optional AI)*
-Adding 50 physical books one by one is tedious, so you can just take a photo of your real bookcase under **Add Book → Scan Photo**:
-
-- Your browser resizes the photo locally before uploading to keep things fast and lightweight.
-- **Gemini Flash-Lite** reads the spines top-to-bottom, left-to-right, estimates each spine's real color, and matches editions against Google Books & Open Library.
-- A review screen shows confidence badges (`High` / `Check` / `Low`), automatically unchecks books already `In Library`, lets you swap editions or fix a misread title with zero extra AI calls, optionally keeps the photo's real spine colors, and shelves the whole batch in photo order (overflowing to the next shelf if one fills up).
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/shelf-photo-upload.png" alt="Step 1: Drop a real bookshelf photo ready for Gemini Flash-Lite" width="100%" />
-      <p align="center"><strong>1. Drop a Shelf Photo</strong><br />Auto-compressed locally (e.g. <code>225 KB</code>) before sending to Gemini Flash-Lite to stay fast and free-tier friendly.</p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/shelf-photo-scan.png" alt="Step 2: Gemini Flash-Lite review checklist with duplicate detection and batch shelving" width="100%" />
-      <p align="center"><strong>2. Review &amp; Batch Shelve</strong><br />Spines are read left-to-right with color dots, confidence badges, automatic <code>In Library</code> duplicate skip, edition picker, and one-click shelving.</p>
-    </td>
-  </tr>
-</table>
-
-> **Note:** `GEMINI_API_KEY` is **completely optional**. If you don't configure a key, the entire app works normally—only the **Scan Photo** tab stays disabled with a short setup notice.
-
-<br />
-
-### 🏛️ Multiple Bookcases, Rooms & Live Customizer
+### 🏛️ Multiple Bookcases, Rooms & 3D Book Reveals
 Keep separate shelves for reading years (`2026`, `2025`), genres, or moods—then zoom out to **All Shelves** to see miniature live previews of every bookcase and drag-and-drop their order.
 
 <img src="docs/screenshots/all-shelves-overview.png" alt="All Shelves Overview" width="100%" />
@@ -74,6 +50,30 @@ Keep separate shelves for reading years (`2026`, `2025`), genres, or moods—the
     </td>
   </tr>
 </table>
+
+<br />
+
+### 📸 Snap a Real Shelf Photo, Shelve the Whole Row *(Optional AI)*
+Adding 50 physical books one by one is tedious, so you can just take a photo of your real bookcase under **Add Book → Scan Photo**:
+
+- Your browser resizes the photo locally before uploading to keep things fast and lightweight.
+- **Gemini Flash-Lite** reads the spines top-to-bottom, left-to-right (even mixed-language shelves, skipping backwards or unreadable books), estimates each spine's real color, and matches editions against Google Books & Open Library.
+- A review screen shows confidence badges (`High` / `Check` / `Low`), automatically unchecks books already `In Library`, lets you swap editions or fix a misread title with zero extra AI calls, optionally keeps the photo's real spine colors, and shelves the whole batch in photo order (overflowing to the next shelf if one fills up).
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/shelf-photo-upload.png" alt="Step 1: Drop a real bookshelf photo ready for Gemini Flash-Lite" width="100%" />
+      <p align="center"><strong>1. Drop a Real Shelf Photo</strong><br />Auto-compressed locally (<code>238 KB</code>) before sending to Gemini Flash-Lite to stay fast and free-tier friendly.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/shelf-photo-scan.png" alt="Step 2: Live Gemini Flash-Lite scan matching 14 of 14 books with covers and spine colors" width="100%" />
+      <p align="center"><strong>2. Review &amp; Batch Shelve</strong><br />Live result: 14 of 14 readable spines matched left-to-right with real covers, spine color dots, confidence badges, and one-click shelving.</p>
+    </td>
+  </tr>
+</table>
+
+> **Note:** `GEMINI_API_KEY` is **completely optional**. If you don't configure a key, the entire app works normally—only the **Scan Photo** tab stays disabled with a short setup notice.
 
 <br />
 
