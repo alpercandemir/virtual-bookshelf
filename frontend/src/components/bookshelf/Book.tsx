@@ -93,16 +93,10 @@ export const BookVisual = React.memo(function BookVisual({
 
   const wideSpine = px.spineWidthPx >= 32;
   const showMonogram = px.spineWidthPx >= 44 && px.heightPx >= 182;
-  const authorName = book.authors[0]?.trim();
   const labelHeight = px.heightPx - (showMonogram ? 38 : 24);
-  const authorHeight = !wideSpine && authorName
-    ? Math.min(labelHeight * 0.45, authorName.length * 5.5) + 5
-    : 0;
   const maxTitleSize = px.spineWidthPx >= 44 ? 16 : wideSpine ? 14 : 12;
-  const titleFontSize = Math.max(11, Math.min(
-    maxTitleSize,
-    (labelHeight - authorHeight) / (book.title.length * 0.63)
-  ));
+  const titleLength = Math.max(1, book.title.length) * 0.63;
+  const titleFontSize = Math.max(11, Math.min(maxTitleSize, labelHeight / titleLength));
   const monogram = getPublisherMonogram(book.publisher, book.title);
 
   const fontClass =
@@ -320,18 +314,13 @@ export const BookVisual = React.memo(function BookVisual({
                 data-dark-text={darkSpineText || undefined}
                 style={{ color: spineTextColor }}
               >
-                <div className="book-spine-labels" data-wide={wideSpine || undefined}>
+                <div className="book-spine-title-area">
                   <span
                     className={`book-spine-vertical-title ${fontClass}`}
                     style={{ fontSize: titleFontSize }}
                   >
                     {book.title}
                   </span>
-                  {authorName && (
-                    <span className="book-spine-vertical-title book-spine-author font-sans">
-                      {authorName}
-                    </span>
-                  )}
                 </div>
                 {showMonogram && (
                   <span
