@@ -44,7 +44,16 @@ describe('Shelf Photo Scanning (Gemini Vision + Catalog Matching)', () => {
   let app: FastifyInstance;
   let cookie = '';
   let geminiCallCount = 0;
-  let geminiMode: 'ok' | 'rate_limit' | 'fallback_404' = 'ok';
+  let lastGeminiRequestBody: Record<string, unknown> | null = null;
+  let geminiMode:
+    | 'ok'
+    | 'rate_limit'
+    | 'fallback_404'
+    | 'thought_parts'
+    | 'truncated_salvageable'
+    | 'truncated_unrecoverable'
+    | 'fallback_503'
+    | 'reject_thinking_400' = 'ok';
 
   const mockSearchFetch: FetchLike = async (input) => {
     const url = String(input);
@@ -91,6 +100,7 @@ describe('Shelf Photo Scanning (Gemini Vision + Catalog Matching)', () => {
     const url = String(input);
     const headers = (init?.headers ?? {}) as Record<string, string>;
     expect(headers['x-goog-api-key']).toBe('AQ.test-key');
+    lastGeminiRequestBody = init?.body ? JSON.parse(String(init.body)) : null;
 
     if (geminiMode === 'rate_limit') {
       return new Response(
@@ -103,6 +113,96 @@ describe('Shelf Photo Scanning (Gemini Vision + Catalog Matching)', () => {
       return new Response(
         JSON.stringify({ error: { message: 'Model not found' } }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (geminiMode === 'fallback_503' && url.includes('gemini-3.5-flash-lite')) {
+      return new Response(
+        JSON.stringify({ error: { message: 'High demand' } }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (geminiMode === 'reject_thinking_400') {
+      const genCfg = (lastGeminiRequestBody?.generationConfig ?? {}) as Record<string, unknown>;
+      if ('thinkingConfig' in genCfg) {
+        return new Response(
+          JSON.stringify({ error: { message: 'thinkingConfig not supported' } }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (geminiMode === 'thought_parts') {
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: 'STOP',
+              content: {
+                parts: [
+                  {
+                    thought: true,
+                    text: 'Let me carefully inspect each spine on the shelf...',
+                  },
+                  {
+                    text: JSON.stringify({
+                      books: [
+                        {
+                          title: 'Dune',
+                          author: 'Frank Herbert',
+                          shelfRow: 1,
+                          position: 1,
+                          spineColorHex: '#C27A2B',
+                          confidence: 'high',
+                          language: 'en',
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (geminiMode === 'truncated_salvageable') {
+      const truncatedJson =
+        '{"books":[' +
+        '{"title":"Dune","author":"Frank Herbert","shelfRow":1,"position":1,"spineColorHex":"#C27A2B","confidence":"high","language":"en"},' +
+        '{"title":"Bireyselleşmiş Toplum","author":"Zygmunt Bauman","shelfRow":1,"position":2,"spineColorHex":"#4B533E","confidence":"high","language":"tr"},' +
+        '{"title":"Cut Off Mid Str';
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: 'MAX_TOKENS',
+              content: {
+                parts: [{ text: truncatedJson }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (geminiMode === 'truncated_unrecoverable') {
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: 'MAX_TOKENS',
+              content: {
+                parts: [{ text: '{"books":[{"title":"Incomplete Only Book' }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -259,6 +359,12 @@ describe('Shelf Photo Scanning (Gemini Vision + Catalog Matching)', () => {
     expect(body.books[1].detectedTitle).toBe('Unmatched Rare Pamphlet');
     expect(body.books[1].matchStatus).toBe('unmatched');
     expect(geminiCallCount).toBe(1);
+    expect(
+      (lastGeminiRequestBody?.generationConfig as Record<string, unknown>)?.maxOutputTokens
+    ).toBe(8192);
+    expect(
+      (lastGeminiRequestBody?.generationConfig as Record<string, unknown>)?.thinkingConfig
+    ).toEqual({ thinkingLevel: 'LOW' });
 
     // Second identical upload should hit in-memory SHA-256 cache (0 extra Gemini calls)
     const secondRes = await app.inject({
@@ -273,6 +379,105 @@ describe('Shelf Photo Scanning (Gemini Vision + Catalog Matching)', () => {
     expect(secondRes.statusCode).toBe(200);
     expect(secondRes.json().cached).toBe(true);
     expect(geminiCallCount).toBe(1);
+  });
+
+  it('ignores thought parts returned alongside JSON output', async () => {
+    geminiMode = 'thought_parts';
+    const distinctJpeg = Buffer.concat([FAKE_JPEG, Buffer.from([0x10, 0x11])]);
+    const payload = buildMultipartPayload('shelf-thought.jpg', 'image/jpeg', distinctJpeg);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/books/scan-shelf',
+      headers: {
+        cookie,
+        'content-type': payload.contentType,
+      },
+      payload: payload.body,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.detectedCount).toBe(1);
+    expect(body.books[0].detectedTitle).toBe('Dune');
+  });
+
+  it('salvages complete books and attaches a notice when MAX_TOKENS truncates JSON', async () => {
+    geminiMode = 'truncated_salvageable';
+    const distinctJpeg = Buffer.concat([FAKE_JPEG, Buffer.from([0x20, 0x21])]);
+    const payload = buildMultipartPayload('shelf-dense.jpg', 'image/jpeg', distinctJpeg);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/books/scan-shelf',
+      headers: {
+        cookie,
+        'content-type': payload.contentType,
+      },
+      payload: payload.body,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.detectedCount).toBe(2);
+    expect(body.books.map((b: { detectedTitle: string }) => b.detectedTitle)).toEqual([
+      'Dune',
+      'Bireyselleşmiş Toplum',
+    ]);
+    expect(body.notice).toMatch(/output limit/i);
+  });
+
+  it('returns GEMINI_OUTPUT_TRUNCATED when MAX_TOKENS leaves no complete books', async () => {
+    geminiMode = 'truncated_unrecoverable';
+    const distinctJpeg = Buffer.concat([FAKE_JPEG, Buffer.from([0x30, 0x31])]);
+    const payload = buildMultipartPayload('shelf-trunc.jpg', 'image/jpeg', distinctJpeg);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/books/scan-shelf',
+      headers: {
+        cookie,
+        'content-type': payload.contentType,
+      },
+      payload: payload.body,
+    });
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error.code).toBe('GEMINI_OUTPUT_TRUNCATED');
+  });
+
+  it('falls back to the next lite model when the primary model returns 503 high demand', async () => {
+    geminiMode = 'fallback_503';
+    geminiCallCount = 0;
+    const distinctJpeg = Buffer.concat([FAKE_JPEG, Buffer.from([0x40, 0x41])]);
+    const payload = buildMultipartPayload('shelf-503.jpg', 'image/jpeg', distinctJpeg);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/books/scan-shelf',
+      headers: {
+        cookie,
+        'content-type': payload.contentType,
+      },
+      payload: payload.body,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().model).toBe('gemini-3.1-flash-lite');
+    expect(geminiCallCount).toBe(2);
+  });
+
+  it('retries without thinkingConfig when a model rejects it with 400', async () => {
+    geminiMode = 'reject_thinking_400';
+    geminiCallCount = 0;
+    const distinctJpeg = Buffer.concat([FAKE_JPEG, Buffer.from([0x50, 0x51])]);
+    const payload = buildMultipartPayload('shelf-400.jpg', 'image/jpeg', distinctJpeg);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/books/scan-shelf',
+      headers: {
+        cookie,
+        'content-type': payload.contentType,
+      },
+      payload: payload.body,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(geminiCallCount).toBe(2);
+    expect(
+      (lastGeminiRequestBody?.generationConfig as Record<string, unknown>)?.thinkingConfig
+    ).toBeUndefined();
   });
 
   it('surfaces 429 rate limit errors clearly without leaking secrets', async () => {

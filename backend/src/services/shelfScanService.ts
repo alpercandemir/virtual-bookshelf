@@ -15,7 +15,8 @@ const MAX_DETECTED_BOOKS = 40;
 const MATCH_CONCURRENCY = 3;
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 30;
-const GEMINI_TIMEOUT_MS = 28_000;
+const GEMINI_TIMEOUT_MS = 45_000;
+const GEMINI_MAX_OUTPUT_TOKENS = 8192;
 
 const FALLBACK_LITE_MODELS = [
   'gemini-3.5-flash-lite',
@@ -61,10 +62,19 @@ const GEMINI_RESPONSE_SCHEMA = {
 };
 
 const rawDetectedBookSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  author: z.string().trim().max(120).nullable().optional(),
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .transform((val) => val.slice(0, 200)),
+  author: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val.slice(0, 120) : null)),
   shelfRow: z.coerce.number().int().min(1).max(20).optional().default(1),
-  position: z.coerce.number().int().min(1).max(100).optional().default(1),
+  position: z.coerce.number().int().min(1).max(200).optional().default(1),
   spineColorHex: z
     .string()
     .trim()
@@ -79,14 +89,13 @@ const rawDetectedBookSchema = z.object({
   language: z
     .string()
     .trim()
-    .max(12)
     .nullable()
     .optional()
-    .transform((val) => (val ? val.toLowerCase() : null)),
+    .transform((val) => (val ? val.slice(0, 12).toLowerCase() : null)),
 });
 
 const rawGeminiOutputSchema = z.object({
-  books: z.array(rawDetectedBookSchema).default([]),
+  books: z.array(z.unknown()).default([]),
 });
 
 interface RawDetectedBook {
@@ -205,29 +214,125 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-function extractJsonTextFromGemini(payload: unknown): string {
+interface ExtractedGeminiPayload {
+  text: string;
+  finishReason: string | null;
+  blockReason: string | null;
+}
+
+function supportsThinkingLevel(model: string): boolean {
+  return /^gemini-3/i.test(model);
+}
+
+function stripMarkdownFences(raw: string): string {
+  const closed = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (closed) {
+    return closed[1].trim();
+  }
+  // Also strip an unclosed opening fence if output was truncated mid-block
+  return raw.replace(/^```(?:json)?\s*/i, '').trim();
+}
+
+function extractGeminiCandidate(payload: unknown): ExtractedGeminiPayload {
   const data = payload as {
     candidates?: Array<{
       content?: {
-        parts?: Array<{ text?: string }>;
+        parts?: Array<{ text?: string; thought?: boolean }>;
       };
       finishReason?: string;
     }>;
+    promptFeedback?: {
+      blockReason?: string;
+    };
   };
 
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason ?? null;
+  const blockReason = data.promptFeedback?.blockReason ?? null;
+  const parts = candidate?.content?.parts ?? [];
+
+  // Exclude internal reasoning parts (thought: true) so they never pollute JSON output
   const joined = parts
+    .filter((p) => !p.thought && typeof p.text === 'string')
     .map((p) => p.text ?? '')
     .join('')
     .trim();
 
   if (!joined) {
-    return '{"books":[]}';
+    return { text: '{"books":[]}', finishReason, blockReason };
   }
 
-  // Strip accidental markdown code fences if a model ignores responseMimeType
-  const fenced = joined.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return (fenced ? fenced[1] : joined).trim();
+  return {
+    text: stripMarkdownFences(joined),
+    finishReason,
+    blockReason,
+  };
+}
+
+/**
+ * Salvages complete book objects from a truncated `{"books":[{...},{...` JSON
+ * response (e.g. when Gemini hits MAX_TOKENS on a very dense bookshelf).
+ */
+function tryRecoverTruncatedBooksJson(raw: string): { books: unknown[] } | null {
+  const booksKeyMatch = raw.match(/"books"\s*:\s*\[/);
+  if (!booksKeyMatch || booksKeyMatch.index === undefined) {
+    return null;
+  }
+
+  const arrayStart = booksKeyMatch.index + booksKeyMatch[0].length;
+  const recovered: unknown[] = [];
+
+  let inString = false;
+  let escaped = false;
+  let depth = 0;
+  let objStart = -1;
+
+  for (let i = arrayStart; i < raw.length; i += 1) {
+    const ch = raw[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === '{') {
+      if (depth === 0) {
+        objStart = i;
+      }
+      depth += 1;
+    } else if (ch === '}') {
+      if (depth > 0) {
+        depth -= 1;
+        if (depth === 0 && objStart >= 0) {
+          const slice = raw.slice(objStart, i + 1);
+          try {
+            const parsedObj = JSON.parse(slice);
+            if (parsedObj && typeof parsedObj === 'object') {
+              recovered.push(parsedObj);
+            }
+          } catch {
+            // Skip malformed object
+          }
+          objStart = -1;
+        }
+      }
+    } else if (ch === ']' && depth === 0) {
+      break;
+    }
+  }
+
+  return recovered.length > 0 ? { books: recovered } : null;
 }
 
 export class ShelfScanService {
@@ -288,9 +393,24 @@ export class ShelfScanService {
     model: string,
     apiKey: string,
     base64Image: string,
-    mimeType: string
-  ): Promise<{ ok: true; text: string } | { ok: false; status: number; message: string }> {
+    mimeType: string,
+    useThinkingConfig = supportsThinkingLevel(model)
+  ): Promise<
+    | { ok: true; extracted: ExtractedGeminiPayload }
+    | { ok: false; status: number; message: string }
+  > {
     const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
+
+    const generationConfig: Record<string, unknown> = {
+      temperature: 0.1,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      responseMimeType: 'application/json',
+      responseSchema: GEMINI_RESPONSE_SCHEMA,
+    };
+
+    if (useThinkingConfig) {
+      generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+    }
 
     let res: Response;
     try {
@@ -315,12 +435,7 @@ export class ShelfScanService {
               ],
             },
           ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-            responseMimeType: 'application/json',
-            responseSchema: GEMINI_RESPONSE_SCHEMA,
-          },
+          generationConfig,
         }),
         signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       });
@@ -352,17 +467,21 @@ export class ShelfScanService {
       } catch {
         // ignore JSON parse error on error body
       }
+      // If a model rejects thinkingConfig with 400, retry once without it
+      if (res.status === 400 && useThinkingConfig) {
+        return this.callGeminiForModel(model, apiKey, base64Image, mimeType, false);
+      }
       return { ok: false, status: res.status, message: apiMsg };
     }
 
     const payload = await res.json();
-    return { ok: true, text: extractJsonTextFromGemini(payload) };
+    return { ok: true, extracted: extractGeminiCandidate(payload) };
   }
 
   private async detectSpinesWithGemini(
     imageBuffer: Buffer,
     mimeType: string
-  ): Promise<{ modelUsed: string; detected: RawDetectedBook[] }> {
+  ): Promise<{ modelUsed: string; detected: RawDetectedBook[]; truncated: boolean }> {
     const apiKey = this.resolveApiKey();
     if (!apiKey) {
       throw new AppError(
@@ -381,30 +500,38 @@ export class ShelfScanService {
     const base64Image = imageBuffer.toString('base64');
     let lastError: { status: number; message: string } | null = null;
     let modelUsed = primaryModel;
-    let rawJsonText: string | null = null;
+    let extracted: ExtractedGeminiPayload | null = null;
 
     for (const model of candidateModels) {
       const result = await this.callGeminiForModel(model, apiKey, base64Image, mimeType);
       if (result.ok) {
         modelUsed = model;
-        rawJsonText = result.text;
+        extracted = result.extracted;
         break;
       }
 
       lastError = { status: result.status, message: result.message };
-      // Only fall back to another lite model when the model ID isn't found (404)
-      if (result.status !== 404) {
+      // Fall back to another lite model when the model ID isn't found (404)
+      // or is temporarily overloaded (503).
+      if (result.status !== 404 && result.status !== 503) {
         break;
       }
     }
 
-    if (rawJsonText === null) {
+    if (extracted === null) {
       const status = lastError?.status ?? 502;
       if (status === 429) {
         throw new AppError(
           429,
           'GEMINI_RATE_LIMITED',
           'Gemini free-tier rate limit reached. Please wait a moment and try again.'
+        );
+      }
+      if (status === 503) {
+        throw new AppError(
+          503,
+          'GEMINI_OVERLOADED',
+          'Gemini is temporarily experiencing high demand. Please try again in a few seconds.'
         );
       }
       if (status === 401 || status === 403) {
@@ -421,19 +548,73 @@ export class ShelfScanService {
       );
     }
 
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawJsonText);
-    } catch {
+    if (extracted.blockReason || extracted.finishReason === 'SAFETY') {
       throw new AppError(
         502,
-        'GEMINI_INVALID_RESPONSE',
-        'Received an unreadable response from Gemini. Please retry with a clearer photo.'
+        'GEMINI_BLOCKED_RESPONSE',
+        'Gemini could not process this photo due to safety filters. Please try a different photo.'
       );
     }
 
-    const validated = rawGeminiOutputSchema.safeParse(parsedJson);
-    if (!validated.success) {
+    const rawJsonText = extracted.text;
+    let parsedJson: unknown;
+    let truncated = extracted.finishReason === 'MAX_TOKENS';
+
+    try {
+      parsedJson = JSON.parse(rawJsonText);
+    } catch (parseErr) {
+      const salvaged = tryRecoverTruncatedBooksJson(rawJsonText);
+      if (salvaged) {
+        parsedJson = salvaged;
+        truncated = true;
+        console.warn(
+          `[ShelfScan] Recovered ${salvaged.books.length} books from truncated Gemini JSON (model=${modelUsed}, finishReason=${extracted.finishReason ?? 'unknown'}, chars=${rawJsonText.length})`
+        );
+      } else {
+        console.warn(
+          `[ShelfScan] Failed to parse Gemini JSON (model=${modelUsed}, finishReason=${extracted.finishReason ?? 'unknown'}, chars=${rawJsonText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`
+        );
+        if (extracted.finishReason === 'MAX_TOKENS') {
+          throw new AppError(
+            502,
+            'GEMINI_OUTPUT_TRUNCATED',
+            'Too many books were detected in one photo and Gemini hit its output limit. Try photographing one shelf at a time.'
+          );
+        }
+        throw new AppError(
+          502,
+          'GEMINI_INVALID_RESPONSE',
+          'Received an unreadable response from Gemini. Please retry with a clearer photo.'
+        );
+      }
+    }
+
+    const validatedRoot = rawGeminiOutputSchema.safeParse(parsedJson);
+    if (!validatedRoot.success) {
+      throw new AppError(
+        502,
+        'GEMINI_INVALID_RESPONSE',
+        'Could not parse detected books from Gemini response.'
+      );
+    }
+
+    const validBooks: RawDetectedBook[] = [];
+    for (const entry of validatedRoot.data.books) {
+      const parsedItem = rawDetectedBookSchema.safeParse(entry);
+      if (parsedItem.success) {
+        validBooks.push({
+          title: parsedItem.data.title,
+          author: parsedItem.data.author ?? null,
+          shelfRow: parsedItem.data.shelfRow,
+          position: parsedItem.data.position,
+          spineColorHex: parsedItem.data.spineColorHex ?? null,
+          confidence: parsedItem.data.confidence,
+          language: parsedItem.data.language ?? null,
+        });
+      }
+    }
+
+    if (validatedRoot.data.books.length > 0 && validBooks.length === 0) {
       throw new AppError(
         502,
         'GEMINI_INVALID_RESPONSE',
@@ -442,7 +623,7 @@ export class ShelfScanService {
     }
 
     // Sort top-to-bottom, left-to-right, deduplicate identical consecutive/repeated titles, cap at MAX_DETECTED_BOOKS
-    const sorted = [...validated.data.books]
+    const sorted = [...validBooks]
       .sort((a, b) => a.shelfRow - b.shelfRow || a.position - b.position)
       .slice(0, MAX_DETECTED_BOOKS);
 
@@ -452,18 +633,10 @@ export class ShelfScanService {
       const normKey = `${normalizeForCompare(item.title)}|${normalizeForCompare(item.author ?? '')}`;
       if (!normKey || normKey === '|' || seen.has(normKey)) continue;
       seen.add(normKey);
-      deduped.push({
-        title: item.title,
-        author: item.author || null,
-        shelfRow: item.shelfRow,
-        position: item.position,
-        spineColorHex: item.spineColorHex ?? null,
-        confidence: item.confidence,
-        language: item.language ?? null,
-      });
+      deduped.push(item);
     }
 
-    return { modelUsed, detected: deduped };
+    return { modelUsed, detected: deduped, truncated };
   }
 
   public async scanShelfPhoto(
@@ -484,7 +657,7 @@ export class ShelfScanService {
       };
     }
 
-    const { modelUsed, detected } = await this.detectSpinesWithGemini(
+    const { modelUsed, detected, truncated } = await this.detectSpinesWithGemini(
       imageBuffer,
       mimeType
     );
@@ -560,6 +733,11 @@ export class ShelfScanService {
       detectedCount: resolvedBooks.length,
       matchedCount,
       books: resolvedBooks,
+      ...(truncated
+        ? {
+            notice: `This shelf photo had many books and reached the AI output limit, so the first ${resolvedBooks.length} detected spines are shown. For the rest, try scanning one shelf at a time.`,
+          }
+        : {}),
     };
 
     this.setCached(hash, response);

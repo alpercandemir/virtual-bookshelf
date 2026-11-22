@@ -729,6 +729,13 @@ export function ShelfPhotoScanner({
           </div>
         ) : (
           <>
+            {scanResult.notice && (
+              <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                <p>{scanResult.notice}</p>
+              </div>
+            )}
+
             {/* Bulk Options Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-1">
               <div className="flex items-center gap-2">
