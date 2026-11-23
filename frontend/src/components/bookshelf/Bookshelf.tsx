@@ -22,6 +22,7 @@ import {
   type ShelfBookDto,
   type ShelfCompartmentDto,
 } from '@bookshelf/shared';
+import { X } from 'lucide-react';
 import { BookVisual } from './Book';
 import { ShelfCompartment } from './ShelfCompartment';
 
@@ -35,11 +36,20 @@ export interface BookshelfProps {
   ) => void;
   onInvalidDrop?: (reason: string) => void;
   recentlyAddedId?: string | null;
+  locateRequest?: { bookId: string } | null;
+  onLocated?: () => void;
+  forExport?: boolean;
 }
 
 interface ShelfLevelGroup {
   row: number;
   compartments: ShelfCompartmentDto[];
+}
+
+const ordinalRules = new Intl.PluralRules('en', { type: 'ordinal' });
+function ordinal(value: number) {
+  const suffix: Record<string, string> = { one: 'st', two: 'nd', few: 'rd' };
+  return `${value}${suffix[ordinalRules.select(value)] ?? 'th'}`;
 }
 
 function findBookAndCompartment(
@@ -91,6 +101,9 @@ export function Bookshelf({
   onReorderComplete,
   onInvalidDrop,
   recentlyAddedId,
+  locateRequest,
+  onLocated,
+  forExport = false,
 }: BookshelfProps) {
   const [activeBook, setActiveBook] = React.useState<ShelfBookDto | null>(null);
   const [draftCompartments, setDraftCompartments] = React.useState<
@@ -137,7 +150,54 @@ export function Bookshelf({
       }));
   }, [displayedCompartments]);
 
+  const compartments = levels.flatMap(level => level.compartments);
+  const [phoneCompartmentId, setPhoneCompartmentId] = React.useState<string>();
+  const [selection, setSelection] = React.useState<{ bookId: string } | null>(null);
+  const stageRef = React.useRef<HTMLElement>(null);
+  const touch = React.useRef<{ x: number; y: number; row: HTMLElement | null; scrollLeft: number; panning: boolean } | null>(null);
+  const match = selection ? findBookAndCompartment(compartments, selection.bookId) : null;
+  const selected = match?.book;
+  const selectedComp = match?.compartment;
+  const currentComp = compartments.find(comp => comp.id === phoneCompartmentId) ?? compartments[0];
+  const label = (comp: ShelfCompartmentDto) => comp.settings.label || `Level ${comp.row + 1}, column ${comp.column + 1}`;
+
+  React.useLayoutEffect(() => {
+    if (!locateRequest) return;
+    const match = findBookAndCompartment(bookshelf.compartments, locateRequest.bookId);
+    if (match?.book) {
+      setPhoneCompartmentId(match.compartment.id);
+      setSelection(locateRequest);
+    }
+    onLocated?.();
+  }, [locateRequest, bookshelf.compartments, onLocated]);
+
+  React.useLayoutEffect(() => {
+    if (!selection) return;
+    const slot = stageRef.current?.querySelector<HTMLElement>(`[data-book-id="${CSS.escape(selection.bookId)}"]`);
+    slot?.querySelector('button')?.focus({ preventScroll: true });
+    slot?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    if (slot) {
+      slot.dataset.located = 'true';
+      return () => { delete slot.dataset.located; };
+    }
+  }, [selection]);
+
+  const navigate = (delta: number) => {
+    const next = compartments[compartments.indexOf(currentComp) + delta];
+    if (next) {
+      setPhoneCompartmentId(next.id);
+      setSelection(null);
+    }
+  };
+
+  const inspect = (book: ShelfBookDto) => {
+    setSelection(null);
+    onSelectBook(book);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
+    touch.current = null;
+    setSelection(null);
     const id = String(event.active.id);
     const found = findBookAndCompartment(bookshelf.compartments, id);
     if (found?.book) {
@@ -302,12 +362,69 @@ export function Bookshelf({
       onDragCancel={handleDragCancel}
     >
       <section
+        ref={stageRef}
+        data-export={forExport || undefined}
         aria-label={bookshelf.name}
+        onKeyDown={event => {
+          if (!selection || event.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return;
+          setSelection(null);
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onTouchStart={event => {
+          if (event.touches.length !== 1) { touch.current = null; return; }
+          const point = event.touches[0];
+          const book = (event.target as HTMLElement).closest('.book-slot');
+          const row = book?.closest<HTMLElement>('.shelf-books-row') ?? null;
+          touch.current = { x: point.clientX, y: point.clientY, row, scrollLeft: row?.scrollLeft ?? 0, panning: false };
+        }}
+        onTouchMove={event => {
+          const start = touch.current;
+          if (!start?.row || !window.matchMedia('(max-width: 639px)').matches) return;
+          const dx = event.touches[0].clientX - start.x;
+          const dy = event.touches[0].clientY - start.y;
+          if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < 8) return;
+          const row = start.row;
+          if (dx > 0 ? start.scrollLeft > 1 : start.scrollLeft + row.clientWidth < row.scrollWidth - 1) {
+            row.scrollLeft = start.scrollLeft - dx;
+            start.panning = true;
+          }
+        }}
+        onTouchCancel={() => { touch.current = null; }}
+        onTouchEnd={event => {
+          const start = touch.current;
+          touch.current = null;
+          if (!start || !window.matchMedia('(max-width: 639px)').matches) return;
+          const dx = event.changedTouches[0].clientX - start.x;
+          const dy = event.changedTouches[0].clientY - start.y;
+          if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+          if (start.panning) return;
+          navigate(dx < 0 ? 1 : -1);
+        }}
         className="bookshelf-stage w-full px-1 sm:px-6 pt-2 sm:pt-3 pb-6 sm:pb-10"
       >
+        {!forExport && currentComp && (
+          <nav className="compartment-nav sm:hidden" aria-label="Bookcase map">
+            <div className="min-w-0">
+              <p className="font-display text-xl">{label(currentComp)}</p>
+              <p className="text-xs ui-text-secondary">{compartments.indexOf(currentComp) + 1} of {compartments.length} compartments</p>
+            </div>
+            <div className="compartment-map">
+              {levels.map(level => (
+                <div key={level.row}>
+                  {level.compartments.map(comp => (
+                    <button type="button" key={comp.id} style={{ flexGrow: comp.widthRatio }}
+                      aria-label={`Show ${label(comp)}`} aria-pressed={comp.id === currentComp.id}
+                      onClick={() => { setPhoneCompartmentId(comp.id); setSelection(null); }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </nav>
+        )}
         {/* Horizontally scrollable viewport wrapper on narrow screens to keep book spines readable */}
         <div className="library-scroll overflow-x-auto pb-4 sm:pb-5 pt-3 sm:pt-4">
-          <div className="relative mx-auto w-full max-w-[1040px] min-w-[640px] sm:min-w-[720px] px-3 sm:px-6">
+          <div className="relative mx-auto w-full max-w-[1040px] sm:min-w-[720px] px-3 sm:px-6">
             {/* Warm Overhead Brass Gallery Lamp & Sconce Glow */}
             {showSconce && (
               <>
@@ -341,7 +458,7 @@ export function Bookshelf({
 
                 <div className="bookshelf-interior">
                   {levels.map((level) => (
-                    <div key={level.row} className="w-full">
+                    <div key={level.row} className="shelf-level w-full" data-phone-current={level.row === currentComp?.row || undefined}>
                       {/* Compartment Row */}
                       <div className="shelf-level-row">
                         {level.compartments.map((comp, idx) => (
@@ -354,7 +471,8 @@ export function Bookshelf({
                             )}
                             <ShelfCompartment
                               compartment={comp}
-                              onSelectBook={onSelectBook}
+                              currentOnPhone={comp.id === currentComp?.id}
+                              onSelectBook={inspect}
                               onQuickAddToCompartment={onQuickAddToCompartment}
                               recentlyAddedId={recentlyAddedId}
                               isDropTarget={hoverCompartmentId === comp.id}
@@ -371,11 +489,12 @@ export function Bookshelf({
                             {idx > 0 && <div className="w-[20px] shrink-0" />}
                             <div
                               className="flex items-center justify-center min-w-0"
+                              data-phone-current={comp.id === currentComp?.id || undefined}
                               style={{ flexGrow: comp.widthRatio, flexBasis: 0 }}
                             >
-                              {comp.settings.label && (
+                              {(comp.settings.label || currentComp?.id === comp.id) && (
                                 <span className="shelf-brass-plaque">
-                                  {comp.settings.label}
+                                  {label(comp)}
                                 </span>
                               )}
                             </div>
@@ -400,6 +519,21 @@ export function Bookshelf({
             </div>
           </div>
         </div>
+        {selected && selectedComp && selection && (
+          <div className="shelf-selection ui-surface-panel" aria-label="Selected book">
+            <div className="min-w-0 flex-1" role="status">
+              <p className="font-display text-lg leading-tight">{selected.book.title}</p>
+              <p className="text-xs ui-text-secondary">{bookshelf.name} · {label(selectedComp)} · {ordinal(selectedComp.books.findIndex(book => book.id === selected.id) + 1)} from left</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => inspect(selected)}>Open details</button>
+              <button type="button" aria-label="Return book to shelf" onClick={() => {
+                stageRef.current?.querySelector<HTMLButtonElement>(`[data-book-id="${CSS.escape(selected.id)}"] button`)?.focus();
+                setSelection(null);
+              }}><X size={16} /></button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Floating Physical 3D Book Drag Preview */}

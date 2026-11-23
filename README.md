@@ -8,6 +8,8 @@ A hobby project for keeping track of the books on my physical shelves. I wanted 
 
 - Keep several bookcases and give each its own layout, wood finish, and room theme. Drag books between compartments or arrange an entire bookcase by title, author, author surname, height, or spine color.
 - Find editions by title, author, or ISBN using Google Books and Open Library, or enter a book by hand. Press <kbd>⌘</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> to find a book you already shelved.
+- In Find, choose **Show on shelf** for the bookcase, compartment, and position from the left, or **Open details** to inspect the book. On phones, tap the bookcase map or swipe to switch compartments.
+- On phones, open the top-right menu to customize or share a shelf.
 - Click a spine to turn the book in 3D, check its edition and dimensions, or record reading status, a rating, and notes. The app estimates dimensions when the catalog doesn't supply them.
 - Use **Share shelf** to save a bookcase as a PNG. The account menu can export your library as a JSON backup and restore the shelves as copies.
 

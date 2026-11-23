@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   Library,
   LogOut,
+  MoreHorizontal,
   Plus,
   Search,
   Share2,
@@ -146,7 +147,7 @@ export function TopToolbar({
                 ? 'Return to Single Shelf View'
                 : `All Shelves (${shelfCount})`
             }
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 transition cursor-pointer whitespace-nowrap shrink-0 ${
+            className={`hidden sm:inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 transition cursor-pointer whitespace-nowrap shrink-0 ${
               viewMode === 'overview'
                 ? 'bg-[#cfa458] border-[#e2be79] text-[#1a1107] font-semibold shadow'
                 : secondaryBtnClass
@@ -176,7 +177,7 @@ export function TopToolbar({
                 aria-label="Share shelf"
                 title="Share shelf"
                 onClick={onShareShelf}
-                className={`inline-flex items-center justify-center rounded-lg border w-9 h-9 shrink-0 transition cursor-pointer ${secondaryBtnClass}`}
+                className={`hidden sm:inline-flex items-center justify-center rounded-lg border w-9 h-9 shrink-0 transition cursor-pointer ${secondaryBtnClass}`}
               >
                 <Share2 className="w-4 h-4 text-[#c49849]" />
               </button>
@@ -186,7 +187,7 @@ export function TopToolbar({
                 onClick={onOpenCustomizer}
                 data-testid="open-customizer-btn"
                 aria-label="Customize bookshelf"
-                className={`inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 transition cursor-pointer whitespace-nowrap shrink-0 ${secondaryBtnClass}`}
+                className={`hidden sm:inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 transition cursor-pointer whitespace-nowrap shrink-0 ${secondaryBtnClass}`}
               >
                 <SlidersHorizontal className="w-4 h-4 text-[#c49849] shrink-0" />
                 <span className="hidden sm:inline">Customize</span>
@@ -215,7 +216,8 @@ export function TopToolbar({
               data-testid="account-menu-btn"
               className={`inline-flex items-center justify-center gap-2 rounded-lg border w-9 h-9 sm:w-auto sm:h-auto sm:px-2.5 sm:py-2 text-xs transition cursor-pointer ${secondaryBtnClass}`}
             >
-              <User className="w-4 h-4 text-[#c49849]" />
+              <User className="hidden sm:block w-4 h-4 text-[#c49849]" />
+              <MoreHorizontal className="sm:hidden w-5 h-5" />
               <span className="hidden md:inline max-w-[100px] truncate">
                 {user.username}
               </span>
@@ -240,6 +242,21 @@ export function TopToolbar({
                     </p>
                   </div>
 
+                  <div className="sm:hidden border-b ui-surface-header">
+                    {[
+                      { label: viewMode === 'single' ? 'All shelves' : 'Return to bookshelf', action: onToggleViewMode, Icon: LayoutGrid },
+                      ...(viewMode === 'single' ? [
+                        { label: 'Customize bookshelf', action: onOpenCustomizer, Icon: SlidersHorizontal },
+                        { label: 'Share shelf', action: onShareShelf, Icon: Share2 },
+                      ] : []),
+                    ].map(({ label, action, Icon }) => (
+                      <button type="button" key={label} role="menuitem"
+                        className="w-full flex items-center gap-2 px-3.5 py-3 text-left text-sm ui-text-primary"
+                        onClick={() => { setMenuOpen(false); action(); }}>
+                        <Icon size={16} />{label}
+                      </button>
+                    ))}
+                  </div>
                   {totalBooks === 0 && viewMode === 'single' && (
                     <button
                       type="button"

@@ -405,6 +405,7 @@
 
 /* Shelving Stack */
 .bookshelf-interior {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background-color: #140d09;
@@ -1363,7 +1364,7 @@
    ========================================================================== */
 @media (max-width: 639px) {
   .bookshelf-cabinet {
-    min-width: 640px;
+    min-width: 0;
     filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.72));
   }
 
@@ -1407,4 +1408,53 @@
   .book-3d-object:hover {
     transform: rotateY(-24deg) rotateX(4deg);
   }
+}
+
+/* Show on shelf */
+.book-slot[data-located] .book-spine-button {
+  transform: translateY(-10px) scale(1.02) !important;
+  outline: 3px solid #f5c76e;
+  outline-offset: 2px;
+}
+.book-slot { scroll-margin: 88px 12px 130px; }
+.shelf-selection {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 22;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: calc(100% - 12px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 14px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 12px;
+  box-shadow: 0 5px 20px #0004;
+}
+.shelf-selection button, .find-result-action {
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.shelf-selection button:disabled { opacity: .35; cursor: default; }
+.find-result-action:hover, .shelf-selection button:enabled:hover { background: var(--ui-hover); }
+@media (max-width: 639px) {
+  .compartment-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 14px 10px; }
+  .compartment-map { width: 104px; flex-shrink: 0; padding: 3px; border: 1px solid var(--ui-text-muted); border-radius: 4px; }
+  .compartment-map > div { display: flex; }
+  .compartment-map button { flex-basis: 0; min-height: 26px; border: 1px solid var(--ui-text-muted); background: var(--ui-panel); cursor: pointer; }
+  .compartment-map button[aria-pressed=true] { background: #cfa458; box-shadow: inset 0 0 0 2px var(--ui-panel); }
+  .bookshelf-stage:not([data-export]) :is(.shelf-level:not([data-phone-current]),
+    .shelf-compartment:not([data-phone-current]), .shelf-divider-mullion, .shelf-plank-fascia > div:not([data-phone-current])) { display: none; }
+  .bookshelf-stage:not([data-export]) :is(.shelf-compartment[data-phone-current], .shelf-plank-fascia > [data-phone-current]) { flex: 1 1 100% !important; }
+  .compartment-nav, .shelf-level .shelf-plank-fascia, .shelf-level .shelf-books-row { touch-action: pan-y; }
+  .shelf-level .book-hover-tooltip { display: none; }
+  .shelf-books-row { overflow-x: auto; }
+  .shelf-selection { position: relative; bottom: auto; justify-content: center; }
+  .shelf-selection > div:first-child { flex-basis: 100%; }
+  .shelf-selection button, .find-result-action { min-height: 42px; }
 }
