@@ -10,6 +10,7 @@ interface LibrarySearchPaletteProps {
   open: boolean;
   onClose: () => void;
   bookshelves: BookshelfDto[];
+  onShowOnShelf: (bookshelfId: string, shelfBook: ShelfBookDto) => void;
   onSelectResult: (bookshelfId: string, shelfBook: ShelfBookDto) => void;
 }
 
@@ -24,6 +25,7 @@ export function LibrarySearchPalette({
   onClose,
   bookshelves,
   onSelectResult,
+  onShowOnShelf,
 }: LibrarySearchPaletteProps) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'reading' | 'finished' | 'unread'>('all');
@@ -70,7 +72,7 @@ export function LibrarySearchPalette({
       setQuery('');
       setStatusFilter('all');
       setActiveIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 20);
+      inputRef.current?.focus();
     }
   }, [open]);
 
@@ -90,16 +92,11 @@ export function LibrarySearchPalette({
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIdx((i) => Math.max(0, i - 1));
-      } else if (e.key === 'Enter' && filtered[activeIdx]) {
-        e.preventDefault();
-        const hit = filtered[activeIdx];
-        onSelectResult(hit.shelf.id, hit.shelfBook);
-        onClose();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, filtered, activeIdx, onSelectResult, onClose]);
+  }, [open, filtered.length, onClose]);
 
   if (!open) return null;
 
@@ -124,7 +121,14 @@ export function LibrarySearchPalette({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
+            onKeyDown={event => {
+              const hit = filtered[activeIdx];
+              if (event.key !== 'Enter' || !hit) return;
+              event.preventDefault();
+              onShowOnShelf(hit.shelf.id, hit.shelfBook);
+              onClose();
+            }}
             placeholder="Find a book across all your shelves, authors, tags, or notes..."
             className="flex-1 min-w-0 bg-transparent text-base sm:text-sm ui-text-primary placeholder:opacity-55 focus:outline-none"
           />
@@ -179,7 +183,7 @@ export function LibrarySearchPalette({
               </p>
             </div>
           ) : (
-            filtered.slice(0, 40).map((hit, idx) => {
+            filtered.map((hit, idx) => {
               const app = resolveSpineAppearance({
                 id: hit.shelfBook.book.id,
                 title: hit.shelfBook.book.title,
@@ -195,15 +199,10 @@ export function LibrarySearchPalette({
               const isSelected = idx === activeIdx;
 
               return (
-                <button
+                <div
                   key={hit.shelfBook.id}
-                  type="button"
                   onMouseEnter={() => setActiveIdx(idx)}
-                  onClick={() => {
-                    onSelectResult(hit.shelf.id, hit.shelfBook);
-                    onClose();
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition cursor-pointer ${
+                  className={`w-full flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 rounded-xl text-left transition cursor-pointer ${
                     isSelected
                       ? 'bg-[#cfa458]/20 ring-1 ring-[#cfa458]/45'
                       : 'hover:bg-[#cfa458]/10'
@@ -240,7 +239,7 @@ export function LibrarySearchPalette({
                     </p>
                   </div>
 
-                  <div className="text-right shrink-0">
+                  <div className="text-right max-w-[35%] break-words">
                     <span className="inline-flex items-center gap-1 rounded-full border border-current/15 px-2 py-0.5 text-[10px] ui-text-secondary">
                       {hit.shelf.name}
                       {hit.shelf.tag && (
@@ -260,7 +259,19 @@ export function LibrarySearchPalette({
                       )}
                     </div>
                   </div>
-                </button>
+                  <div className="flex w-full gap-2 pl-6">
+                    <button type="button" className="find-result-action font-semibold"
+                      aria-label={`Show ${hit.shelfBook.book.title} on shelf`}
+                      onClick={() => { onShowOnShelf(hit.shelf.id, hit.shelfBook); onClose(); }}>
+                      Show on shelf
+                    </button>
+                    <button type="button" className="find-result-action"
+                      aria-label={`Open details for ${hit.shelfBook.book.title}`}
+                      onClick={() => { onSelectResult(hit.shelf.id, hit.shelfBook); onClose(); }}>
+                      Open details
+                    </button>
+                  </div>
+                </div>
               );
             })
           )}

@@ -105,7 +105,7 @@ export function ShareShelfDialog({
               data-room-mode={room.mode}
             >
               <h3 className="px-8 text-center font-display text-3xl font-semibold">{shelf.name}</h3>
-              <Bookshelf bookshelf={shelf} onSelectBook={() => undefined} />
+              <Bookshelf forExport bookshelf={shelf} onSelectBook={() => undefined} />
             </div>
           </div>
           {captureFailed ? (

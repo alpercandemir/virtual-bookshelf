@@ -36,10 +36,15 @@ test.describe('The Virtual Bookshelf — Primary E2E User Flows', () => {
     expect(duneBox!.width).toBeGreaterThan(calvinoBox!.width);
     expect(duneBox!.height).toBeGreaterThan(calvinoBox!.height);
 
-    // On mobile, verify bookshelf stays readable (wide scrollable cabinet, never squished tiny)
+    // On phones, one compartment fits the viewport and the map reaches the rest.
     if (isMobile) {
       const cabinetBox = await cabinet.boundingBox();
-      expect(cabinetBox!.width).toBeGreaterThanOrEqual(640);
+      expect(cabinetBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      const compartment = page.locator('.shelf-compartment:visible');
+      await expect(compartment).toHaveCount(1);
+      expect((await compartment.boundingBox())!.width).toBeGreaterThan(cabinetBox!.width * 0.8);
+      await page.getByRole('button', { name: 'Show Upper Right' }).click();
+      await expect(page.getByRole('button', { name: /^Meditations by/ })).toBeVisible();
       return;
     }
 
@@ -246,9 +251,11 @@ test('reviews a two-row import, shares a shelf, and restores a backup on mobile'
   await expect(page.getByTestId('book-search-modal')).toHaveCount(0);
   await page.reload();
   await expect(page.getByTestId(`compartment-${first}`).getByRole('button', { name: /^The Orchard by Alex Lee/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Show Main Gallery' }).click();
   await expect(page.getByTestId(`compartment-${second}`).getByRole('button', { name: /^A Garden of Paper by Sam Kaya/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Share shelf', exact: true }).click();
+  await page.getByTestId('account-menu-btn').click();
+  await page.getByRole('menuitem', { name: 'Share shelf' }).click();
   const preview = page.getByRole('img', { name: 'Image of My Personal Library' });
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(1000);
@@ -280,4 +287,52 @@ test('reviews a two-row import, shares a shelf, and restores a backup on mobile'
   await expect(page.getByText('Restored 1 shelf as copies.')).toBeVisible();
   const library = await page.request.get('/api/bookshelves');
   expect((await library.json()).bookshelves).toHaveLength(2);
+});
+
+test('locates a book across bookcases and opens details separately', async ({ page }, testInfo) => {
+  const phone = testInfo.project.name === 'mobile-viewport';
+  const username = 'browse_' + (phone ? 'phone_' : 'desktop_') + Date.now();
+  const registration = await page.request.post('/api/auth/register', {
+    data: { username, password: 'LibraryPassword123', seedSamples: false },
+  });
+  expect(registration.ok()).toBe(true);
+  const creation = await page.request.post('/api/bookshelves', {
+    data: { name: 'Living room', seedSamples: true },
+  });
+  expect(creation.ok()).toBe(true);
+  await page.goto('/');
+  const find = async (title: string) => {
+    await page.getByRole('button', { name: 'Find in my library' }).click();
+    await page.getByTestId('library-search-palette').getByRole('textbox').fill(title);
+  };
+  await find('Meditations');
+  await page.getByRole('button', { name: 'Show Meditations on shelf' }).click();
+  await expect(page.getByRole('heading', { name: 'Living room' })).toBeVisible();
+  const located = page.locator('[data-located] button');
+  await expect(located).toBeFocused();
+  await expect(located).toHaveAccessibleName(/^Meditations by/);
+  await expect(page.locator('.shelf-selection')).toContainText('Living room · Shelf 1B · 1st from left');
+  await expect(page.getByTestId('book-reveal-modal')).toHaveCount(0);
+  if (phone) await expect(page.getByRole('button', { name: 'Show Shelf 1B' })).toHaveAttribute('aria-pressed', 'true');
+
+  if (phone) {
+    const row = page.locator('.shelf-compartment:visible');
+    const bounds = (await row.boundingBox())!;
+    const point = { x: bounds.x + 160, y: bounds.y + 16 };
+    const touch = await page.context().newCDPSession(page);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, x: point.x - 90 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await touch.detach();
+    await expect(page.getByRole('button', { name: 'Show Shelf 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await find('Dune');
+  await page.getByTestId('library-search-palette').getByRole('textbox').press('Enter');
+  await expect(located).toHaveAccessibleName(/^Dune by/);
+  await page.locator('.shelf-selection').getByRole('button', { name: 'Open details' }).click();
+  await expect(page.getByRole('dialog', { name: 'Book details for Dune' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await find('Meditations');
+  await page.getByRole('button', { name: 'Open details for Meditations' }).press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Book details for Meditations' })).toBeVisible();
 });

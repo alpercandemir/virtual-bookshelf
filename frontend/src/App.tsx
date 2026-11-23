@@ -65,6 +65,7 @@ function LibraryWorkspace() {
   const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(
     null
   );
+  const [locateRequest, setLocateRequest] = useState<{ bookId: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [targetCompartmentId, setTargetCompartmentId] = useState<string | null>(
     null
@@ -370,6 +371,9 @@ function LibraryWorkspace() {
             )}
 
             <Bookshelf
+              key={bookshelf.id}
+              locateRequest={locateRequest}
+              onLocated={() => setLocateRequest(null)}
               bookshelf={bookshelf}
               onSelectBook={(sb) => setSelectedShelfBookId(sb.id)}
               onQuickAddToCompartment={(compId) => {
@@ -438,7 +442,7 @@ function LibraryWorkspace() {
             }`}
           >
             <span className="sm:hidden">
-              Swipe shelf horizontally &middot; Tap any spine to inspect &middot; Press &amp; hold to rearrange
+              Swipe between compartments &middot; Press &amp; hold a book to rearrange
             </span>
             <span className="hidden sm:inline">
               Click any spine to pull it from the shelf &middot; Drag volumes to rearrange &middot;{' '}
@@ -481,6 +485,11 @@ function LibraryWorkspace() {
         open={libraryFindOpen}
         onClose={() => setLibraryFindOpen(false)}
         bookshelves={bookshelves}
+        onShowOnShelf={(shelfId, sb) => {
+          selectBookshelf(shelfId, true);
+          setSelectedShelfBookId(null);
+          setLocateRequest({ bookId: sb.id });
+        }}
         onSelectResult={(shelfId, sb) => {
           selectBookshelf(shelfId, true);
           setSelectedShelfBookId(sb.id);

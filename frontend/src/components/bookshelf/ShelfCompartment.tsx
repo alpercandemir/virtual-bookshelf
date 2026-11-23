@@ -14,6 +14,7 @@ interface ShelfCompartmentProps {
   onSelectBook: (shelfBook: ShelfBookDto) => void;
   onQuickAddToCompartment?: (compartmentId: string) => void;
   recentlyAddedId?: string | null;
+  currentOnPhone?: boolean;
   isDropTarget?: boolean;
   isDropInvalid?: boolean;
 }
@@ -23,6 +24,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
   onSelectBook,
   onQuickAddToCompartment,
   recentlyAddedId,
+  currentOnPhone,
   isDropTarget = false,
   isDropInvalid = false,
 }: ShelfCompartmentProps) {
@@ -41,6 +43,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
     <div
       ref={setNodeRef}
       data-testid={`compartment-${compartment.id}`}
+      data-phone-current={currentOnPhone || undefined}
       data-drop-active={activeDrop && !isDropInvalid ? 'true' : undefined}
       data-drop-invalid={isDropInvalid ? 'true' : undefined}
       className="shelf-compartment group/comp"
