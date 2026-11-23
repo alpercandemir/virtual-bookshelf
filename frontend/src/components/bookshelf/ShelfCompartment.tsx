@@ -34,7 +34,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
     },
   });
 
-  const { fillPct, isFull, isNearlyFull } = getCompartmentCapacityStatus(compartment);
+  const { fillPct } = getCompartmentCapacityStatus(compartment);
   const activeDrop = isDropTarget || isOver;
 
   return (
@@ -43,7 +43,6 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
       data-testid={`compartment-${compartment.id}`}
       data-drop-active={activeDrop && !isDropInvalid ? 'true' : undefined}
       data-drop-invalid={isDropInvalid ? 'true' : undefined}
-      data-compartment-full={isFull ? 'true' : undefined}
       className="shelf-compartment group/comp"
       style={{
         flexGrow: compartment.widthRatio,
@@ -52,7 +51,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
       }}
       aria-label={`Shelf ${compartment.row + 1}${
         compartment.settings.label ? ` — ${compartment.settings.label}` : ''
-      }, ${compartment.books.length} books${isFull ? ', shelf is full' : ''}`}
+      }, ${compartment.books.length} books`}
     >
       {/* Recessed Horizontal Wood Shelf Deck Surface */}
       <div className="shelf-deck-surface" aria-hidden="true" />
@@ -79,31 +78,6 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
       {!isDropInvalid && activeDrop && (
         <div className="pointer-events-none absolute top-2.5 right-3 z-20 rounded-lg bg-[#2a1d12]/95 border border-[#e2b96c]/70 px-2.5 py-1 text-xs font-medium text-[#f5dfaf] shadow-lg">
           Place here ({fillPct}% full)
-        </div>
-      )}
-
-      {/* Clear Persistent Indicator when Compartment is Full or Almost Full */}
-      {!isDropInvalid && !activeDrop && isFull && (
-        <div
-          role="status"
-          data-testid="compartment-full-badge"
-          title="This shelf compartment is full. Add books to another shelf or add a new shelf level in Customize Shelf."
-          className="pointer-events-none absolute top-2 right-2.5 z-20 inline-flex items-center gap-1.5 rounded-full bg-[#4c0b0b]/95 border border-red-400/80 px-2.5 py-1 text-xs font-semibold text-red-50 shadow-[0_4px_14px_rgba(0,0,0,0.75)]"
-        >
-          <AlertTriangle className="w-3.5 h-3.5 text-red-300 shrink-0" />
-          <span>Shelf Full</span>
-        </div>
-      )}
-
-      {!isDropInvalid && !activeDrop && isNearlyFull && (
-        <div
-          role="status"
-          data-testid="compartment-nearly-full-badge"
-          title={`This shelf compartment is ${fillPct}% full — only slim books may fit.`}
-          className="pointer-events-none absolute top-2 right-2.5 z-20 inline-flex items-center gap-1.5 rounded-full bg-[#3f2306]/95 border border-amber-400/75 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100 shadow-[0_4px_12px_rgba(0,0,0,0.65)]"
-        >
-          <AlertTriangle className="w-3 h-3 text-amber-300 shrink-0" />
-          <span>Almost Full ({fillPct}%)</span>
         </div>
       )}
 

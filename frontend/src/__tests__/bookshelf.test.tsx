@@ -218,7 +218,7 @@ describe('Full-shelf capacity warnings', () => {
     return shelf;
   }
 
-  it('shows a visible Shelf Full badge on full compartments', () => {
+  it('keeps the general shelf view free of idle full-shelf badges', () => {
     const shelf = makeShelfWithFullFirstCompartment();
     render(
       <Bookshelf
@@ -228,14 +228,10 @@ describe('Full-shelf capacity warnings', () => {
       />
     );
 
-    const fullComp = screen.getByTestId('compartment-comp-0');
-    const openComp = screen.getByTestId('compartment-comp-1');
-
-    expect(fullComp).toHaveAttribute('data-compartment-full', 'true');
-    expect(within(fullComp).getByTestId('compartment-full-badge')).toHaveTextContent(
-      'Shelf Full'
-    );
-    expect(within(openComp).queryByTestId('compartment-full-badge')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('compartment-full-badge')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('compartment-nearly-full-badge')
+    ).not.toBeInTheDocument();
   });
 
   it('shows a prominent warning in BookSearchModal when targeting a full compartment and supports switching', () => {
