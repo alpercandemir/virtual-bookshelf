@@ -920,20 +920,24 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 5px;
   width: 100%;
   height: 100%;
-  padding: 13px 3px 11px;
+  padding: 15px 3px 13px;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .book-spine-vertical-title {
+  display: block;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-height: 100%;
+  max-width: 100%;
   line-height: 1.08;
   letter-spacing: 0.02em;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.32);
@@ -949,10 +953,42 @@
 
 .book-spine-title-area {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+
+.book-spine-divider {
+  width: 52%;
+  max-width: 18px;
+  height: 1px;
+  flex: 0 0 auto;
+  opacity: 0.45;
+  border-radius: 999px;
+}
+
+.book-spine-author-area {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 36%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.book-spine-author-surname {
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  opacity: 0.9;
 }
 
 /* ==========================================================================

@@ -8,6 +8,7 @@ import {
   type ShelfBookDto,
 } from '@bookshelf/shared';
 import { getProxiedCoverUrl } from '../../api/client';
+import { parseAuthorNameForLastNameSort } from '../../utils/shelfSorting';
 import { ProceduralCover } from './ProceduralCover';
 
 export interface BookVisualProps {
@@ -92,11 +93,38 @@ export const BookVisual = React.memo(function BookVisual({
   const spineImageSrc = getProxiedCoverUrl(appearance.customSpineUrl);
 
   const wideSpine = px.spineWidthPx >= 32;
-  const showMonogram = px.spineWidthPx >= 44 && px.heightPx >= 182;
-  const labelHeight = px.heightPx - (showMonogram ? 38 : 24);
-  const maxTitleSize = px.spineWidthPx >= 44 ? 16 : wideSpine ? 14 : 12;
-  const titleLength = Math.max(1, book.title.length) * 0.63;
-  const titleFontSize = Math.max(11, Math.min(maxTitleSize, labelHeight / titleLength));
+  const authorSurname = useMemo(() => {
+    const primary = book.authors.find((author) => author.trim().length > 0);
+    if (!primary) return '';
+    return parseAuthorNameForLastNameSort(primary).lastName;
+  }, [book.authors]);
+
+  const showMonogram = !authorSurname && px.spineWidthPx >= 44 && px.heightPx >= 182;
+  const innerHeight = Math.max(88, px.heightPx - 28);
+  const maxAuthorAreaHeight = Math.floor(innerHeight * 0.36);
+  const maxAuthorSize = px.spineWidthPx >= 44 ? 10 : wideSpine ? 9.5 : 8.5;
+  const authorFontSize = authorSurname
+    ? Math.max(
+        7.5,
+        Math.min(
+          maxAuthorSize,
+          maxAuthorAreaHeight / (Math.max(1, authorSurname.length) * 0.72)
+        )
+      )
+    : maxAuthorSize;
+  const estimatedAuthorHeight = authorSurname
+    ? Math.min(
+        maxAuthorAreaHeight,
+        Math.ceil(authorSurname.length * authorFontSize * 0.72) + 4
+      )
+    : 0;
+  const labelHeight = Math.max(
+    46,
+    innerHeight - (authorSurname ? estimatedAuthorHeight + 11 : showMonogram ? 16 : 0)
+  );
+  const maxTitleSize = px.spineWidthPx >= 44 ? 15 : wideSpine ? 13.5 : 11.5;
+  const titleLength = Math.max(1, book.title.length) * 0.62;
+  const titleFontSize = Math.max(10, Math.min(maxTitleSize, labelHeight / titleLength));
   const monogram = getPublisherMonogram(book.publisher, book.title);
 
   const fontClass =
@@ -251,11 +279,11 @@ export const BookVisual = React.memo(function BookVisual({
             {!spineImageSrc && appearance.motif === 'editorial-stripe' && (
               <>
                 <div
-                  className="pointer-events-none absolute top-3 left-0 right-0 h-2.5 z-3 opacity-85"
+                  className="pointer-events-none absolute top-1.5 left-0 right-0 h-1.5 z-3 opacity-85"
                   style={{ backgroundColor: appearance.accentColor }}
                 />
                 <div
-                  className="pointer-events-none absolute bottom-4 left-0 right-0 h-2.5 z-3 opacity-85"
+                  className="pointer-events-none absolute bottom-1.5 left-0 right-0 h-1.5 z-3 opacity-85"
                   style={{ backgroundColor: appearance.accentColor }}
                 />
               </>
@@ -264,7 +292,7 @@ export const BookVisual = React.memo(function BookVisual({
             {/* Gilt Inset Cartouche Frame */}
             {!spineImageSrc && appearance.motif === 'gilt-frame' && (
               <div
-                className="pointer-events-none absolute inset-x-[4px] inset-y-[10px] z-3 rounded-[1px]"
+                className="pointer-events-none absolute inset-x-[4px] inset-y-[8px] z-3 rounded-[1px]"
                 style={{
                   border: `1px solid ${appearance.accentColor}7a`,
                 }}
@@ -287,11 +315,11 @@ export const BookVisual = React.memo(function BookVisual({
                 appearance.motif === 'minimal-modern') && (
                 <>
                   <div
-                    className="pointer-events-none absolute top-[9%] left-[4px] right-[4px] h-[1px] z-3 opacity-75"
+                    className="pointer-events-none absolute top-[5%] left-[4px] right-[4px] h-[1px] z-3 opacity-75"
                     style={{ backgroundColor: appearance.accentColor }}
                   />
                   <div
-                    className="pointer-events-none absolute bottom-[10%] left-[4px] right-[4px] h-[1px] z-3 opacity-75"
+                    className="pointer-events-none absolute bottom-[5%] left-[4px] right-[4px] h-[1px] z-3 opacity-75"
                     style={{ backgroundColor: appearance.accentColor }}
                   />
                 </>
@@ -322,6 +350,24 @@ export const BookVisual = React.memo(function BookVisual({
                     {book.title}
                   </span>
                 </div>
+                {authorSurname && (
+                  <>
+                    <span
+                      className="book-spine-divider"
+                      aria-hidden="true"
+                      style={{ backgroundColor: spineTextColor }}
+                    />
+                    <div className="book-spine-author-area">
+                      <span
+                        className="book-spine-vertical-title book-spine-author-surname font-sans"
+                        data-testid="book-spine-author-surname"
+                        style={{ fontSize: authorFontSize }}
+                      >
+                        {authorSurname}
+                      </span>
+                    </div>
+                  </>
+                )}
                 {showMonogram && (
                   <span
                     className="text-[7px] font-display font-bold tracking-widest opacity-75 shrink-0"

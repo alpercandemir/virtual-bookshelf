@@ -33,6 +33,7 @@ import {
 import { api, ApiError, getProxiedCoverUrl } from '../../api/client';
 import { getCompartmentCapacityStatus } from '../../utils/compartmentCapacity';
 import { extractCoverPaletteFromUrl } from '../../utils/extractCoverPalette';
+import { parseAuthorNameForLastNameSort } from '../../utils/shelfSorting';
 import { ProceduralCover } from '../bookshelf/ProceduralCover';
 
 interface BookRevealModalProps {
@@ -351,9 +352,34 @@ export function BookRevealModal({
                 }}
               >
                 <div className="book-spine-lighting" />
-                <span className="book-spine-vertical-title font-display font-bold text-xs relative z-10 max-h-[82%]">
-                  {book.title}
-                </span>
+                <div className="book-spine-text-wrap">
+                  <div className="book-spine-title-area">
+                    <span className="book-spine-vertical-title font-display font-bold text-xs">
+                      {book.title}
+                    </span>
+                  </div>
+                  {(() => {
+                    const primary = book.authors.find((a) => a.trim().length > 0);
+                    const surname = primary
+                      ? parseAuthorNameForLastNameSort(primary).lastName
+                      : '';
+                    if (!surname) return null;
+                    return (
+                      <>
+                        <span
+                          className="book-spine-divider"
+                          aria-hidden="true"
+                          style={{ backgroundColor: appearance.textColor }}
+                        />
+                        <div className="book-spine-author-area">
+                          <span className="book-spine-vertical-title book-spine-author-surname font-sans text-[9px]">
+                            {surname}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Cream Page Edges */}

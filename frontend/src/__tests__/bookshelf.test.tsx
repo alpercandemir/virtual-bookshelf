@@ -87,8 +87,8 @@ function makeBookshelf(bookCount: number): BookshelfDto {
 }
 
 describe('<Bookshelf /> component', () => {
-  it('shows titles on spines and full authors in tooltips', () => {
-    const shelf = makeBookshelf(2);
+  it('shows titles and author surnames in separate non-overlapping spine areas and full authors in tooltips', () => {
+    const shelf = makeBookshelf(3);
     shelf.compartments[0].books = [
       makeShelfBook(0, 'comp-0', {
         title: 'Slim Poetry',
@@ -110,8 +110,14 @@ describe('<Bookshelf /> component', () => {
           title: 'Epic History',
         }),
       }),
+      makeShelfBook(2, 'comp-0', {
+        title: 'Anonymous Chronicle',
+        authors: [],
+        pageCount: 220,
+      }),
     ];
     shelf.compartments[1].books = [];
+    shelf.compartments[2].books = [];
 
     const onSelect = vi.fn();
     render(<Bookshelf bookshelf={shelf} onSelectBook={onSelect} />);
@@ -121,11 +127,32 @@ describe('<Bookshelf /> component', () => {
 
     const slimBtn = screen.getByTestId('book-spine-sb-0');
     const epicBtn = screen.getByTestId('book-spine-sb-1');
-    expect(within(slimBtn).getByText('Slim Poetry')).toBeVisible();
+    const anonBtn = screen.getByTestId('book-spine-sb-2');
+
+    // Title & author surname appear in distinct flex regions (never sharing a container)
+    const slimTitle = within(slimBtn).getByText('Slim Poetry');
+    const slimSurname = within(slimBtn).getByTestId('book-spine-author-surname');
+    expect(slimTitle).toBeVisible();
+    expect(slimSurname).toBeVisible();
+    expect(slimSurname).toHaveTextContent('Le Guin');
+    expect(slimTitle.closest('.book-spine-title-area')).not.toBeNull();
+    expect(slimSurname.closest('.book-spine-author-area')).not.toBeNull();
+    expect(slimTitle.closest('.book-spine-title-area')).not.toBe(
+      slimSurname.closest('.book-spine-author-area')
+    );
     expect(within(slimBtn).queryByText('Ursula K. Le Guin')).not.toBeInTheDocument();
     expect(slimBtn).toHaveAccessibleName(/Ursula K\. Le Guin/);
-    expect(within(epicBtn).getByText('Epic History')).toBeVisible();
+
+    const epicTitle = within(epicBtn).getByText('Epic History');
+    const epicSurname = within(epicBtn).getByTestId('book-spine-author-surname');
+    expect(epicTitle).toBeVisible();
+    expect(epicSurname).toBeVisible();
+    expect(epicSurname).toHaveTextContent('Herbert');
     expect(within(epicBtn).queryByText('Frank Herbert')).not.toBeInTheDocument();
+
+    // Books without authors render cleanly without an author surname block
+    expect(within(anonBtn).getByText('Anonymous Chronicle')).toBeVisible();
+    expect(within(anonBtn).queryByTestId('book-spine-author-surname')).not.toBeInTheDocument();
 
     const slimSlot = slimBtn.closest('.book-slot') as HTMLElement;
     const epicSlot = epicBtn.closest('.book-slot') as HTMLElement;
