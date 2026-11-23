@@ -22,8 +22,9 @@ import {
   type RoomTheme,
   type WoodFinish,
 } from '@bookshelf/shared';
+import type { ShelfSortMode } from '../../utils/shelfSorting';
 
-export type ShelfSortMode = 'title' | 'author' | 'height' | 'color';
+export type { ShelfSortMode };
 
 interface ShelfCustomizerDrawerProps {
   open: boolean;
@@ -543,15 +544,21 @@ export function ShelfCustomizerDrawer({
           {/* One-Click Auto-Arrange Shelf */}
           {onSortShelf && totalBooksOnShelf > 1 && (
             <div className="rounded-lg border ui-surface-card p-3.5 space-y-2.5">
-              <p className="text-xs uppercase tracking-widest ui-text-muted flex items-center gap-1.5">
-                <ArrowDownWideNarrow className="w-3.5 h-3.5 text-[#c89d54]" />
-                Auto-Arrange Books
-              </p>
+              <div className="space-y-0.5">
+                <p className="text-xs uppercase tracking-widest ui-text-muted flex items-center gap-1.5">
+                  <ArrowDownWideNarrow className="w-3.5 h-3.5 text-[#c89d54]" />
+                  Auto-Arrange Bookshelf
+                </p>
+                <p className="text-[11px] ui-text-muted">
+                  Orders all books across the whole bookshelf from top-left to bottom-right.
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {(
                   [
                     { id: 'title', label: 'Title (A–Z)' },
                     { id: 'author', label: 'Author (A–Z)' },
+                    { id: 'author-last-name', label: 'Author Last Name (A–Z)' },
                     { id: 'height', label: 'Height (Tall → Short)' },
                     { id: 'color', label: 'Color Spectrum' },
                   ] as const
@@ -559,9 +566,12 @@ export function ShelfCustomizerDrawer({
                   <button
                     key={opt.id}
                     type="button"
+                    data-testid={`sort-shelf-${opt.id}`}
                     disabled={sorting !== null}
                     onClick={() => handleSort(opt.id)}
-                    className="rounded-md border ui-surface-input hover:border-[#cfa458] px-2.5 py-1.5 text-xs ui-text-secondary hover:ui-text-primary transition cursor-pointer disabled:opacity-50"
+                    className={`rounded-md border ui-surface-input hover:border-[#cfa458] px-2.5 py-1.5 text-xs ui-text-secondary hover:ui-text-primary transition cursor-pointer disabled:opacity-50 ${
+                      opt.id === 'author-last-name' ? 'col-span-2' : ''
+                    }`}
                   >
                     {sorting === opt.id ? 'Arranging...' : opt.label}
                   </button>

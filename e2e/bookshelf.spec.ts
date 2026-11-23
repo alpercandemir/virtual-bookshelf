@@ -156,6 +156,49 @@ test.describe('The Virtual Bookshelf — Primary E2E User Flows', () => {
     await page.getByRole('button', { name: 'Enter My Library' }).click();
     await expect(page.getByTestId('bookshelf-cabinet')).toHaveAttribute('data-theme', 'oak');
   });
+
+  test('auto-arranges the whole bookshelf by author last name across compartments and persists across reload', async ({
+    page,
+    browserName,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile-viewport', 'Desktop sorting flow');
+    const username = `e2e_sort_${browserName}_${Date.now()}`;
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.getByLabel('Username').fill(username);
+    await page.getByLabel('Password').fill('LibraryPassword123');
+    await page.getByRole('button', { name: 'Create My Bookshelf' }).click();
+    await expect(page.getByTestId('bookshelf-cabinet')).toBeVisible();
+
+    await page.getByTestId('open-customizer-btn').click();
+    await page.getByTestId('sort-shelf-author-last-name').click();
+    await expect(page.getByText('Arranged bookshelf by author last name.')).toBeVisible();
+    await page.getByRole('button', { name: 'Close customizer' }).click();
+
+    const readShelfOrder = async () =>
+      page
+        .locator('[data-testid^="compartment-"] .book-slot button')
+        .evaluateAll((buttons) =>
+          buttons.map((b) => b.getAttribute('aria-label') ?? '')
+        );
+
+    const orderedBeforeReload = await readShelfOrder();
+    expect(orderedBeforeReload.length).toBeGreaterThanOrEqual(10);
+    // Christopher Alexander (Alexander) comes before Marcus Aurelius (Aurelius) and Jane Austen (Austen),
+    // and all of them come before Leo Tolstoy (Tolstoy) and Carlos Ruiz Zafón (Zafón) across the whole shelf.
+    expect(orderedBeforeReload[0]).toMatch(/^A Pattern Language by Christopher Alexander/);
+    expect(orderedBeforeReload[1]).toMatch(/^Meditations by Marcus Aurelius/);
+    expect(orderedBeforeReload[2]).toMatch(/^Pride and Prejudice by Jane Austen/);
+    expect(orderedBeforeReload[orderedBeforeReload.length - 1]).toMatch(
+      /^The Shadow of the Wind by Carlos Ruiz Zafón/
+    );
+
+    await page.reload();
+    await expect(page.getByTestId('bookshelf-cabinet')).toBeVisible();
+    const orderedAfterReload = await readShelfOrder();
+    expect(orderedAfterReload).toEqual(orderedBeforeReload);
+  });
 });
 
 test('reviews a two-row import, shares a shelf, and restores a backup on mobile', async ({ page }, testInfo) => {

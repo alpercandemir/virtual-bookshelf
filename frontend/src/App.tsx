@@ -9,9 +9,7 @@ import {
 } from 'lucide-react';
 import {
   getRoomThemeMeta,
-  resolveSpineAppearance,
   type BookshelfDto,
-  type ShelfBookDto,
 } from '@bookshelf/shared';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BookshelfProvider, useBookshelf } from './context/BookshelfContext';
@@ -30,22 +28,7 @@ import { BookRevealModal } from './components/book-detail/BookRevealModal';
 import { BookSearchModal } from './components/search/BookSearchModal';
 import { LibrarySearchPalette } from './components/search/LibrarySearchPalette';
 import { ApiError } from './api/client';
-
-function hexToHue(hex: string): number {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.slice(0, 2), 16) / 255;
-  const g = parseInt(clean.slice(2, 4), 16) / 255;
-  const b = parseInt(clean.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  if (d === 0) return 360 + (1 - max) * 100; // neutrals grouped at the end by lightness
-  let h = 0;
-  if (max === r) h = ((g - b) / d) % 6;
-  else if (max === g) h = (b - r) / d + 2;
-  else h = (r - g) / d + 4;
-  return (h * 60 + 360) % 360;
-}
+import { arrangeBookshelf } from './utils/shelfSorting';
 
 function LibraryWorkspace() {
   const { user, logout } = useAuth();
@@ -197,11 +180,12 @@ function LibraryWorkspace() {
   const handleReorderComplete = async (
     updatedBookshelf: BookshelfDto,
     payload: Array<{ compartmentId: string; shelfBookIds: string[] }>
-  ) => {
+  ): Promise<boolean> => {
     const previous = bookshelf;
     setActiveBookshelfOptimistic(updatedBookshelf);
     try {
       await persistReorder(payload, updatedBookshelf.id);
+      return true;
     } catch (err) {
       setActiveBookshelfOptimistic(previous);
       pushToast(
@@ -210,73 +194,32 @@ function LibraryWorkspace() {
           : 'Could not save the new book arrangement.',
         'error'
       );
+      return false;
     }
   };
 
   const handleSortShelf = async (mode: ShelfSortMode) => {
-    const sortBooks = (list: ShelfBookDto[]) => {
-      const copy = [...list];
-      copy.sort((a, b) => {
-        if (mode === 'title') {
-          return a.book.title.localeCompare(b.book.title);
-        }
-        if (mode === 'author') {
-          const authA = a.book.authors[0] ?? 'ZZZ';
-          const authB = b.book.authors[0] ?? 'ZZZ';
-          return authA.localeCompare(authB);
-        }
-        if (mode === 'height') {
-          return (
-            b.book.physicalDimensions.heightMm -
-            a.book.physicalDimensions.heightMm
-          );
-        }
-        // Color spectrum (hue)
-        const appA = resolveSpineAppearance({
-          id: a.book.id,
-          title: a.book.title,
-          authors: a.book.authors,
-          format: a.book.physicalDimensions.format,
-          categories: a.book.metadata.categories,
-          palette: a.book.metadata.palette,
-          metadataBindingStyle: a.book.metadata.bindingStyle,
-          overrides: a.visualOverrides,
-        });
-        const appB = resolveSpineAppearance({
-          id: b.book.id,
-          title: b.book.title,
-          authors: b.book.authors,
-          format: b.book.physicalDimensions.format,
-          categories: b.book.metadata.categories,
-          palette: b.book.metadata.palette,
-          metadataBindingStyle: b.book.metadata.bindingStyle,
-          overrides: b.visualOverrides,
-        });
-        return hexToHue(appA.primaryColor) - hexToHue(appB.primaryColor);
-      });
-      return copy.map((sb, idx) => ({ ...sb, position: idx }));
-    };
-
-    const nextCompartments = bookshelf.compartments.map((c) => ({
-      ...c,
-      books: sortBooks(c.books),
-    }));
-    const updatedBookshelf: BookshelfDto = {
-      ...bookshelf,
-      compartments: nextCompartments,
-    };
-    const payload = nextCompartments.map((c) => ({
-      compartmentId: c.id,
-      shelfBookIds: c.books.map((b) => b.id),
-    }));
-    await handleReorderComplete(updatedBookshelf, payload);
+    const { updatedBookshelf, payload, fits } = arrangeBookshelf(
+      bookshelf,
+      mode
+    );
+    if (!fits) {
+      pushToast(
+        'Not enough room across compartments to arrange the whole bookshelf. Try adding a shelf level in Customize.',
+        'error'
+      );
+      return;
+    }
+    const saved = await handleReorderComplete(updatedBookshelf, payload);
+    if (!saved) return;
     const labelMap: Record<ShelfSortMode, string> = {
       title: 'title',
       author: 'author',
+      'author-last-name': 'author last name',
       height: 'height',
       color: 'color spectrum',
     };
-    pushToast(`Arranged books by ${labelMap[mode]}.`, 'success');
+    pushToast(`Arranged bookshelf by ${labelMap[mode]}.`, 'success');
   };
 
   return (

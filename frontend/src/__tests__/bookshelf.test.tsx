@@ -9,6 +9,7 @@ import {
 import { Bookshelf } from '../components/bookshelf/Bookshelf';
 import { BookRevealModal } from '../components/book-detail/BookRevealModal';
 import { BookSearchModal } from '../components/search/BookSearchModal';
+import { ShelfCustomizerDrawer } from '../components/customizer/ShelfCustomizerDrawer';
 import { ApiError } from '../api/client';
 
 function makeShelfBook(
@@ -322,6 +323,37 @@ describe('Full-shelf capacity warnings', () => {
         expect.stringMatching(/does not have enough horizontal room/i),
         'error'
       )
+    );
+  });
+});
+
+describe('<ShelfCustomizerDrawer /> whole-bookshelf sorting controls', () => {
+  it('offers author last name sorting across the whole bookshelf', async () => {
+    const shelf = makeBookshelf(4);
+    const onSortShelf = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ShelfCustomizerDrawer
+        open
+        onClose={vi.fn()}
+        bookshelf={shelf}
+        onUpdateMeta={vi.fn().mockResolvedValue(undefined)}
+        onUpdateLayout={vi.fn().mockResolvedValue(undefined)}
+        onResetLayout={vi.fn().mockResolvedValue(undefined)}
+        onSortShelf={onSortShelf}
+      />
+    );
+
+    expect(
+      screen.getByText(/Orders all books across the whole bookshelf/i)
+    ).toBeInTheDocument();
+
+    const lastNameBtn = screen.getByTestId('sort-shelf-author-last-name');
+    expect(lastNameBtn).toHaveTextContent('Author Last Name (A–Z)');
+
+    fireEvent.click(lastNameBtn);
+    await waitFor(() =>
+      expect(onSortShelf).toHaveBeenCalledWith('author-last-name')
     );
   });
 });
