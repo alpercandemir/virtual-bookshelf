@@ -1,28 +1,83 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { AlertTriangle, Plus } from 'lucide-react';
 import {
+  dimensionsToShelfPixels,
   type ShelfBookDto,
   type ShelfCompartmentDto,
 } from '@bookshelf/shared';
 import { getCompartmentCapacityStatus } from '../../utils/compartmentCapacity';
-import { SortableBook } from './Book';
+import { SortableBook, type ShelfSpotlightMode } from './Book';
 
 interface ShelfCompartmentProps {
   compartment: ShelfCompartmentDto;
   onSelectBook: (shelfBook: ShelfBookDto) => void;
+  onContextMenuBook?: (
+    shelfBook: ShelfBookDto,
+    coords: { x: number; y: number }
+  ) => void;
   onQuickAddToCompartment?: (compartmentId: string) => void;
+  spotlight?: ShelfSpotlightMode;
+  showBookends?: boolean;
   recentlyAddedId?: string | null;
   currentOnPhone?: boolean;
   isDropTarget?: boolean;
   isDropInvalid?: boolean;
 }
 
+type ShelfRenderItem =
+  | { kind: 'single'; book: ShelfBookDto }
+  | { kind: 'stack'; books: ShelfBookDto[] };
+
+function groupShelfRenderItems(
+  books: ShelfBookDto[],
+  compartmentHeightPx: number
+): ShelfRenderItem[] {
+  const items: ShelfRenderItem[] = [];
+  const maxStackHeight = Math.max(150, compartmentHeightPx - 48);
+  let i = 0;
+
+  while (i < books.length) {
+    const current = books[i];
+    if (current.orientation !== 'stacked') {
+      items.push({ kind: 'single', book: current });
+      i += 1;
+      continue;
+    }
+
+    const stack: ShelfBookDto[] = [current];
+    let stackHeight = dimensionsToShelfPixels(
+      current.book.physicalDimensions,
+      compartmentHeightPx
+    ).spineWidthPx;
+    let j = i + 1;
+
+    while (j < books.length && books[j].orientation === 'stacked' && stack.length < 4) {
+      const nextH = dimensionsToShelfPixels(
+        books[j].book.physicalDimensions,
+        compartmentHeightPx
+      ).spineWidthPx;
+      if (stackHeight + nextH > maxStackHeight) break;
+      stack.push(books[j]);
+      stackHeight += nextH;
+      j += 1;
+    }
+
+    items.push({ kind: 'stack', books: stack });
+    i = j;
+  }
+
+  return items;
+}
+
 export const ShelfCompartment = React.memo(function ShelfCompartment({
   compartment,
   onSelectBook,
+  onContextMenuBook,
   onQuickAddToCompartment,
+  spotlight = 'all',
+  showBookends = true,
   recentlyAddedId,
   currentOnPhone,
   isDropTarget = false,
@@ -38,6 +93,20 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
 
   const { fillPct } = getCompartmentCapacityStatus(compartment);
   const activeDrop = isDropTarget || isOver;
+
+  const renderItems = useMemo(
+    () => groupShelfRenderItems(compartment.books, compartment.heightPx),
+    [compartment.books, compartment.heightPx]
+  );
+
+  const lastBook = compartment.books[compartment.books.length - 1];
+  const shouldShowBookend =
+    showBookends &&
+    compartment.books.length > 0 &&
+    fillPct < 82 &&
+    lastBook &&
+    lastBook.orientation !== 'stacked' &&
+    lastBook.orientation !== 'leaning-right';
 
   return (
     <div
@@ -84,21 +153,51 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
         </div>
       )}
 
-      {/* Books Standing Vertically on this Shelf Compartment */}
+      {/* Books Standing Vertically or Lying in Horizontal Stacks */}
       <SortableContext
         items={compartment.books.map((b) => b.id)}
         strategy={horizontalListSortingStrategy}
       >
         <div className="shelf-books-row">
-          {compartment.books.map((shelfBook) => (
-            <SortableBook
-              key={shelfBook.id}
-              shelfBook={shelfBook}
-              compartmentHeightPx={compartment.heightPx}
-              onSelect={onSelectBook}
-              isArriving={recentlyAddedId === shelfBook.id}
-            />
-          ))}
+          {renderItems.map((item) =>
+            item.kind === 'single' ? (
+              <SortableBook
+                key={item.book.id}
+                shelfBook={item.book}
+                compartmentHeightPx={compartment.heightPx}
+                onSelect={onSelectBook}
+                onContextMenuBook={onContextMenuBook}
+                spotlight={spotlight}
+                isArriving={recentlyAddedId === item.book.id}
+              />
+            ) : (
+              <div
+                key={`stack-${item.books[0].id}`}
+                className="book-horizontal-stack"
+                data-testid="book-horizontal-stack"
+              >
+                {item.books.map((stackedBook) => (
+                  <SortableBook
+                    key={stackedBook.id}
+                    shelfBook={stackedBook}
+                    compartmentHeightPx={compartment.heightPx}
+                    onSelect={onSelectBook}
+                    onContextMenuBook={onContextMenuBook}
+                    spotlight={spotlight}
+                    isArriving={recentlyAddedId === stackedBook.id}
+                  />
+                ))}
+              </div>
+            )
+          )}
+
+          {/* Physical Architectural Bookend resting flush against partially-filled rows */}
+          {shouldShowBookend && (
+            <div className="shelf-bookend" aria-hidden="true">
+              <div className="shelf-bookend-upright" />
+              <div className="shelf-bookend-foot" />
+            </div>
+          )}
 
           {/* Empty or remaining space subtle quick-add affordance on hover */}
           {compartment.books.length === 0 ? (
@@ -122,7 +221,7 @@ export const ShelfCompartment = React.memo(function ShelfCompartment({
                 onClick={() => onQuickAddToCompartment(compartment.id)}
                 title="Add a book to this shelf"
                 aria-label={`Add book to shelf ${compartment.row + 1}`}
-                className="opacity-65 sm:opacity-0 sm:group-hover/comp:opacity-75 hover:!opacity-100 focus-visible:opacity-100 transition-opacity ml-2 mb-3 flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-full border border-dashed border-[#d6b26d]/45 bg-[#191009]/65 text-[#dfc080] hover:bg-[#2d1f14]/90 cursor-pointer shrink-0"
+                className="opacity-65 sm:opacity-0 sm:group-hover/comp:opacity-75 hover:!opacity-100 focus-visible:opacity-100 transition-opacity ml-auto mr-1 mb-3 flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-full border border-dashed border-[#d6b26d]/45 bg-[#191009]/65 text-[#dfc080] hover:bg-[#2d1f14]/90 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
               </button>

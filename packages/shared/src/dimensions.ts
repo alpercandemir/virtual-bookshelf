@@ -212,8 +212,16 @@ export function dimensionsToShelfPixels(
 }
 
 /**
+ * Visual width of a horizontally lying (stacked) book on the shelf in pixels.
+ */
+export function getStackedBookWidthPx(heightPx: number): number {
+  return Math.round(clamp(heightPx * 0.76, 134, 182));
+}
+
+/**
  * Computes total horizontal width occupied by books in a compartment (px),
- * accounting for small natural gaps and leaning/face-out widths.
+ * accounting for small natural gaps, leaning/face-out widths, and consecutive
+ * horizontal book stacks (up to 4 books per stack).
  */
 export function computeOccupiedWidthPx(
   books: Array<{
@@ -222,16 +230,45 @@ export function computeOccupiedWidthPx(
   }>,
   compartmentHeightPx = 285
 ): number {
-  return books.reduce((total, item) => {
+  let total = 0;
+  let i = 0;
+  while (i < books.length) {
+    const item = books[i];
     const px = dimensionsToShelfPixels(item.dimensions, compartmentHeightPx);
+    if (item.orientation === 'stacked') {
+      let stackWidth = getStackedBookWidthPx(px.heightPx);
+      let stackHeight = px.spineWidthPx;
+      let count = 1;
+      while (
+        i + count < books.length &&
+        books[i + count].orientation === 'stacked' &&
+        count < 4
+      ) {
+        const nextPx = dimensionsToShelfPixels(
+          books[i + count].dimensions,
+          compartmentHeightPx
+        );
+        if (stackHeight + nextPx.spineWidthPx > Math.max(150, compartmentHeightPx - 48)) {
+          break;
+        }
+        stackWidth = Math.max(stackWidth, getStackedBookWidthPx(nextPx.heightPx));
+        stackHeight += nextPx.spineWidthPx;
+        count += 1;
+      }
+      total += stackWidth + 8;
+      i += count;
+      continue;
+    }
     if (item.orientation === 'face-out') {
-      return total + Math.min(px.depthPx, 148) + 6;
+      total += Math.min(px.depthPx, 148) + 6;
+    } else if (item.orientation === 'leaning-left' || item.orientation === 'leaning-right') {
+      total += px.spineWidthPx + 18;
+    } else {
+      total += px.spineWidthPx + 2;
     }
-    if (item.orientation === 'leaning-left' || item.orientation === 'leaning-right') {
-      return total + px.spineWidthPx + 18;
-    }
-    return total + px.spineWidthPx + 2;
-  }, 0);
+    i += 1;
+  }
+  return total;
 }
 
 /**

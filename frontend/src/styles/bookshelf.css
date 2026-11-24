@@ -103,9 +103,23 @@
    ========================================================================== */
 
 .library-room {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
   transition: background-color 360ms ease, color 360ms ease;
+}
+
+/* Subtle organic wall plaster / paper grain overlay */
+.library-room::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
 }
 
 /* 1. Antique Study — Classic Dark Heritage Library */
@@ -212,39 +226,39 @@
 .bookshelf-sconce-glow {
   pointer-events: none;
   position: absolute;
-  top: -54px;
+  top: -78px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(92%, 860px);
-  height: 220px;
+  width: min(94%, 880px);
+  height: 290px;
   background: radial-gradient(
-    ellipse 62% 72% at 50% 8%,
-    rgba(255, 216, 148, 0.24) 0%,
-    rgba(244, 182, 96, 0.09) 45%,
-    rgba(255, 195, 115, 0) 76%
+    ellipse 58% 68% at 50% 18%,
+    rgba(255, 218, 152, 0.28) 0%,
+    rgba(244, 182, 96, 0.11) 42%,
+    rgba(255, 195, 115, 0) 78%
   );
-  filter: blur(8px);
+  filter: blur(10px);
   z-index: 25;
 }
 
-/* Brass Gallery Lamp Bar above Crown */
+/* Slender Architectural Brass Gallery Picture Lamp above Crown */
 .bookshelf-brass-lamp {
   position: relative;
-  margin: 0 auto 10px;
-  width: 240px;
-  height: 11px;
+  margin: 0 auto 12px;
+  width: 264px;
+  height: 7px;
   border-radius: 999px;
   background: linear-gradient(
     180deg,
-    #f0d494 0%,
-    #c69a49 38%,
-    #7e5b21 82%,
-    #4c3511 100%
+    #f6de9f 0%,
+    #cfa14d 42%,
+    #79561f 84%,
+    #3d2a0d 100%
   );
   box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.75),
-    0 10px 36px 8px rgba(255, 206, 126, 0.28),
-    inset 0 1px 1px rgba(255, 248, 224, 0.75);
+    0 2px 6px rgba(0, 0, 0, 0.8),
+    0 12px 42px 10px rgba(255, 206, 126, 0.3),
+    inset 0 1px 0.5px rgba(255, 250, 232, 0.8);
 }
 
 .bookshelf-brass-lamp::before,
@@ -252,17 +266,17 @@
   content: "";
   position: absolute;
   top: 4px;
-  width: 10px;
-  height: 16px;
-  background: linear-gradient(90deg, #6b4d1c, #d5af63, #5e4318);
-  border-radius: 2px;
+  width: 6px;
+  height: 15px;
+  background: linear-gradient(90deg, #5c4014, #dab466, #4b3410);
+  border-radius: 1.5px;
   z-index: -1;
 }
 .bookshelf-brass-lamp::before {
-  left: 42px;
+  left: 52px;
 }
 .bookshelf-brass-lamp::after {
-  right: 42px;
+  right: 52px;
 }
 
 /* --- Outer Bookcase Frame --- */
@@ -883,17 +897,148 @@
   z-index: 2;
 }
 
-/* Top Stitched Headband & Cream Page Block Peek for Hardcovers */
+/* Subtle Recessed Silk Headband for Hardcovers */
 .book-headband-cap {
   position: absolute;
   top: 0;
-  left: 2px;
-  right: 2px;
-  height: 3.5px;
+  left: 4px;
+  right: 4px;
+  height: 2px;
   z-index: 6;
-  border-radius: 1px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  opacity: 0.72;
+  border-radius: 0 0 1px 1px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.55);
   pointer-events: none;
+}
+
+/* Horizontal Cylindrical Lighting for Stacked Books */
+.book-spine-lighting-horizontal {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 244, 220, 0.22) 0%,
+      rgba(255, 255, 255, 0.05) 26%,
+      rgba(0, 0, 0, 0.05) 68%,
+      rgba(0, 0, 0, 0.44) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.32) 0%,
+      transparent 10%,
+      transparent 88%,
+      rgba(0, 0, 0, 0.36) 100%
+    );
+}
+
+.book-stacked-pages-edge {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  right: 0;
+  width: 5px;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    #efe6d2 0px,
+    #ddd0b4 1px,
+    #f5eee0 2px
+  );
+  box-shadow: -1px 0 3px rgba(0, 0, 0, 0.45);
+}
+
+.book-horizontal-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 1px;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Physical Architectural Bookend resting flush against partially-filled rows */
+.shelf-bookend {
+  position: relative;
+  width: 14px;
+  height: 112px;
+  margin-left: 1px;
+  flex-shrink: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.shelf-bookend-upright {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  height: 108px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 232, 184, 0.55) 0%,
+    var(--wood-brass) 45%,
+    rgba(60, 40, 12, 0.85) 100%
+  );
+  box-shadow:
+    2px 2px 8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 248, 224, 0.65);
+}
+
+.shelf-bookend-foot {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 24px;
+  height: 4px;
+  border-radius: 0 2px 1px 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 236, 194, 0.45) 0%,
+    var(--wood-brass) 55%,
+    rgba(42, 28, 8, 0.85) 100%
+  );
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.65);
+}
+
+/* Live Shelf Spotlight / Lens Mode */
+.book-slot[data-spotlight="dim"] {
+  opacity: 0.24;
+  filter: saturate(0.28) brightness(0.62);
+}
+
+.book-slot[data-spotlight="match"] .book-spine-button {
+  transform: translateY(-7px);
+  box-shadow:
+    0 12px 22px rgba(0, 0, 0, 0.72),
+    0 0 0 1.5px rgba(236, 194, 108, 0.62),
+    0 0 18px rgba(232, 186, 98, 0.24);
+}
+
+/* Subtle natural overhead lamp falloff across shelf levels */
+.shelf-level[data-level-index="0"] .shelf-compartment {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 214, 146, 0.08) 0%,
+      rgba(0, 0, 0, 0.16) 28%,
+      rgba(0, 0, 0, 0.12) 68%,
+      rgba(0, 0, 0, 0.44) 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.34) 0px,
+      rgba(0, 0, 0, 0.34) 1px,
+      rgba(255, 224, 184, 0.04) 2px,
+      transparent 3px,
+      transparent 84px
+    ),
+    linear-gradient(var(--wood-back-tint), var(--wood-back-tint)),
+    var(--wood-v);
 }
 
 /* Raised Leather Binding Ribs / Hubs */
@@ -901,20 +1046,20 @@
   position: absolute;
   left: 0;
   right: 0;
-  height: 5px;
-  z-index: 5;
+  height: 4px;
+  z-index: 4;
   background: linear-gradient(
     180deg,
-    rgba(255, 240, 210, 0.24) 0%,
-    rgba(255, 255, 255, 0.05) 35%,
+    rgba(255, 240, 210, 0.22) 0%,
+    rgba(255, 255, 255, 0.04) 35%,
     rgba(0, 0, 0, 0.36) 75%,
-    rgba(0, 0, 0, 0.58) 100%
+    rgba(0, 0, 0, 0.56) 100%
   );
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.38);
   pointer-events: none;
 }
 
-/* Spine Vertical Typography */
+/* Spine Vertical & Horizontal Typography (Zero Ellipsis) */
 .book-spine-text-wrap {
   position: relative;
   z-index: 6;
@@ -925,7 +1070,21 @@
   gap: 5px;
   width: 100%;
   height: 100%;
-  padding: 15px 3px 13px;
+  padding: 13px 3px 11px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.book-spine-stacked-wrap {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 2px 12px 2px 10px;
   pointer-events: none;
   overflow: hidden;
 }
@@ -934,21 +1093,61 @@
   display: block;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   max-height: 100%;
   max-width: 100%;
+  line-height: 1.06;
+  letter-spacing: 0.015em;
+  text-shadow: 0 0 2px rgba(19, 12, 7, 0.72);
+}
+
+.book-spine-vertical-title-wrap {
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: normal;
+  text-align: center;
+  max-height: 100%;
+  max-width: 100%;
+  line-height: 1.06;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 2px rgba(19, 12, 7, 0.72);
+}
+
+.book-spine-horizontal-title {
+  display: block;
+  text-align: center;
   line-height: 1.08;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.32);
+  letter-spacing: 0.005em;
+  word-break: normal;
+  overflow-wrap: normal;
+  max-width: 100%;
+  text-shadow: 0 0 2px rgba(19, 12, 7, 0.72);
 }
 
-.book-spine-text-wrap .book-spine-vertical-title {
-  text-shadow: 0 0 2px rgba(19, 12, 7, 0.8);
+.book-spine-vertical-author {
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  max-height: 100%;
+  max-width: 100%;
+  text-shadow: 0 0 2px rgba(19, 12, 7, 0.72);
 }
 
-.book-spine-text-wrap[data-dark-text="true"] .book-spine-vertical-title {
+.book-spine-horizontal-author {
+  display: block;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+  text-shadow: 0 0 2px rgba(19, 12, 7, 0.72);
+}
+
+[data-dark-text="true"] .book-spine-vertical-title,
+[data-dark-text="true"] .book-spine-vertical-title-wrap,
+[data-dark-text="true"] .book-spine-horizontal-title,
+[data-dark-text="true"] .book-spine-vertical-author,
+[data-dark-text="true"] .book-spine-horizontal-author {
   text-shadow: 0 0 2px rgba(255, 250, 238, 0.65);
 }
 
@@ -961,11 +1160,27 @@
   width: 100%;
   min-height: 0;
   overflow: hidden;
+  padding: 2px 1px;
+}
+
+/* Contrasting Leather / Parchment Stitched Title Patch (Heritage Archetype) */
+.book-spine-title-patch {
+  flex: 0 1 auto;
+  width: calc(100% - 4px);
+  max-height: 54%;
+  padding: 6px 2px;
+  margin-top: 4px;
+  border-radius: 1.5px;
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .book-spine-divider {
-  width: 52%;
-  max-width: 18px;
+  width: 48%;
+  max-width: 16px;
   height: 1px;
   flex: 0 0 auto;
   opacity: 0.45;
@@ -987,54 +1202,58 @@
 .book-spine-author-surname {
   font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.055em;
   line-height: 1.05;
   opacity: 0.9;
 }
 
 /* ==========================================================================
-   3D BOOK PULL-OUT & COVER REVEAL STAGE (Modal)
+   3D BOOK PULL-OUT & PROPORTIONAL 360° COVER REVEAL STAGE (Modal)
    ========================================================================== */
+
+.book-3d-stage {
+  background: linear-gradient(180deg, #271b13 0%, #1a120c 52%, #130d09 100%);
+}
+
+.library-room[data-room-mode="light"] .book-3d-stage {
+  background: linear-gradient(180deg, #f4eee4 0%, #eae1d2 55%, #e2d7c5 100%);
+}
 
 .book-3d-scene {
   perspective: 1400px;
-  width: 240px;
-  height: 344px;
+  width: 264px;
+  height: 360px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .book-3d-object {
+  --book-w: 218px;
+  --book-h: 324px;
+  --book-d: 36px;
+  --book-half-d: 18px;
   position: relative;
   transform-style: preserve-3d;
-  width: 218px;
-  height: 324px;
+  width: var(--book-w);
+  height: var(--book-h);
   transform: rotateY(-24deg) rotateX(4deg);
-  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
-  animation: book-pullout-turn 680ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: book-pullout-turn 650ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.book-3d-object[data-view="spine"] {
-  transform: rotateY(82deg) rotateX(2deg);
-}
-
-.book-3d-object:hover {
-  transform: rotateY(-12deg) rotateX(2deg) translateZ(8px);
-}
-
-.book-3d-object[data-view="spine"]:hover {
-  transform: rotateY(88deg) rotateX(1deg) translateZ(8px);
+.book-3d-object[data-dragging="true"] {
+  transition: none;
 }
 
 @keyframes book-pullout-turn {
   0% {
     opacity: 0.3;
-    transform: translateZ(-120px) rotateY(84deg) rotateX(0deg);
+    transform: translateZ(-110px) rotateY(84deg) rotateX(0deg);
   }
   45% {
     opacity: 1;
-    transform: translateZ(20px) rotateY(22deg) rotateX(3deg);
+    transform: translateZ(18px) rotateY(20deg) rotateX(3deg);
   }
   100% {
     opacity: 1;
@@ -1047,11 +1266,11 @@
   inset: 0;
   border-radius: 2px 6px 6px 2px;
   overflow: hidden;
-  transform: translateZ(18px);
+  transform: translateZ(var(--book-half-d));
   box-shadow:
     inset 4px 0 10px rgba(0, 0, 0, 0.28),
     inset -1px 0 1px rgba(255, 255, 255, 0.24),
-    18px 24px 40px rgba(0, 0, 0, 0.65);
+    18px 24px 40px rgba(0, 0, 0, 0.55);
   backface-visibility: hidden;
 }
 
@@ -1060,8 +1279,8 @@
   top: 0;
   bottom: 0;
   left: 0;
-  width: 36px;
-  transform: rotateY(-90deg) translateZ(18px);
+  width: var(--book-d);
+  transform: translateX(calc(var(--book-half-d) * -1)) rotateY(-90deg);
   border-radius: 3px 0 0 3px;
   overflow: hidden;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.42);
@@ -1072,8 +1291,8 @@
   top: 4px;
   bottom: 4px;
   left: 0;
-  width: 34px;
-  transform: rotateY(90deg) translateZ(199px);
+  width: calc(var(--book-d) - 2px);
+  transform: translateX(calc(var(--book-w) - var(--book-half-d))) rotateY(90deg);
   background:
     repeating-linear-gradient(
       90deg,
@@ -1092,8 +1311,8 @@
   top: 0;
   left: 4px;
   right: 4px;
-  height: 34px;
-  transform: rotateX(90deg) translateZ(14px);
+  height: calc(var(--book-d) - 2px);
+  transform: translateY(calc(var(--book-half-d) * -1 + 2px)) rotateX(90deg);
   background:
     repeating-linear-gradient(
       0deg,
@@ -1104,12 +1323,32 @@
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.22);
 }
 
+.book-3d-pages-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  height: calc(var(--book-d) - 2px);
+  transform: translateY(calc(var(--book-half-d) - 2px)) rotateX(-90deg);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #e5d9bf 0px,
+      #d8cab0 1px,
+      #eee4ce 2px
+    );
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.25);
+}
+
 .book-3d-back {
   position: absolute;
   inset: 0;
   border-radius: 6px 2px 2px 6px;
-  transform: rotateY(180deg) translateZ(18px);
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+  transform: rotateY(180deg) translateZ(var(--book-half-d));
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.35),
+    -14px 20px 36px rgba(0, 0, 0, 0.48);
+  backface-visibility: hidden;
 }
 
 /* Reduced Motion Respect */

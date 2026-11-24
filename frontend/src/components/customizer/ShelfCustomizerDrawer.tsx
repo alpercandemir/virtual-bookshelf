@@ -38,6 +38,7 @@ interface ShelfCustomizerDrawerProps {
     roomTheme?: RoomTheme;
     configuration?: {
       showSconceLight?: boolean;
+      showBookends?: boolean;
       cabinetStyle?: CabinetStyle;
     };
   }) => Promise<void>;
@@ -134,6 +135,7 @@ export function ShelfCustomizerDrawer({
   const [saving, setSaving] = useState(false);
   const [sorting, setSorting] = useState<ShelfSortMode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sectionFilter, setSectionFilter] = useState<'all' | 'atmosphere' | 'architecture'>('all');
 
   // Only reset staged form fields when opening the drawer or switching to a different shelf.
   // Clicking live appearance controls (theme/wood/sconce) will NOT wipe unsaved name/layout edits!
@@ -278,6 +280,7 @@ export function ShelfCustomizerDrawer({
   };
 
   const showSconce = bookshelf.configuration.showSconceLight !== false;
+  const showBookends = bookshelf.configuration.showBookends !== false;
   const cabinetStyle: CabinetStyle =
     bookshelf.configuration.cabinetStyle ??
     getRoomThemeMeta(bookshelf.roomTheme).defaultCabinetStyle;
@@ -286,38 +289,70 @@ export function ShelfCustomizerDrawer({
     0
   );
 
+  const showAtmosphere = sectionFilter === 'all' || sectionFilter === 'atmosphere';
+  const showArchitecture = sectionFilter === 'all' || sectionFilter === 'architecture';
+
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end pointer-events-none"
       role="dialog"
       aria-modal="true"
       aria-label="Customize Bookshelf"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      <div className="w-full max-w-md ui-surface-panel border-l h-full h-[100dvh] flex flex-col shadow-[-24px_0_48px_rgba(0,0,0,0.45)]">
+      {/* Transparent click-outside layer — never dims or blurs the live bookshelf preview! */}
+      <div
+        className="fixed inset-0 pointer-events-auto"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="relative z-10 pointer-events-auto w-full max-w-md ui-surface-panel border-l sm:border sm:m-3 sm:h-[calc(100dvh-1.5rem)] sm:rounded-2xl h-full h-[100dvh] flex flex-col shadow-[-24px_0_54px_rgba(0,0,0,0.45)] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b ui-surface-header">
-          <div className="flex items-center gap-2.5">
-            <SlidersHorizontal className="w-4 h-4 text-[#c89d54]" />
-            <h2 className="font-display text-2xl font-semibold ui-text-primary">
-              Theme, Craft &amp; Layout
-            </h2>
+        <div className="px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3 border-b ui-surface-header space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <SlidersHorizontal className="w-4 h-4 text-[#c89d54]" />
+              <h2 className="font-display text-2xl font-semibold ui-text-primary">
+                Studio Inspector
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close customizer"
+              className="p-2 sm:p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close customizer"
-            className="p-2 sm:p-1.5 rounded-lg ui-text-muted hover:opacity-100 hover:bg-[#cfa458]/15 transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="inline-flex items-center gap-1 rounded-full border ui-surface-input p-0.5 text-[11px]">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'atmosphere', label: 'Atmosphere' },
+                { id: 'architecture', label: 'Architecture & Sort' },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSectionFilter(tab.id)}
+                className={`rounded-full px-3 py-1 transition cursor-pointer ${
+                  sectionFilter === tab.id
+                    ? 'bg-[#cfa458] text-[#1a1107] font-semibold'
+                    : 'ui-text-secondary hover:ui-text-primary'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 space-y-6">
-          {/* Shelf Name & Year/Tag */}
+        <div className="flex-1 overflow-y-auto library-scroll p-4 sm:p-5 space-y-6">
+          {showAtmosphere && (
+            <>
+              {/* Shelf Name & Year/Tag */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div className="sm:col-span-2">
               <label
@@ -504,43 +539,85 @@ export function ShelfCustomizerDrawer({
             </div>
           </div>
 
-          {/* Overhead Gallery Lamp Toggle */}
-          <div className="flex items-center justify-between rounded-lg border ui-surface-card px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <Lamp className="w-4 h-4 text-[#c89d54]" />
-              <div>
-                <p className="text-sm font-medium ui-text-primary">
-                  Gallery Sconce Light
-                </p>
-                <p className="text-xs ui-text-muted">
-                  Soft overhead ambient shelf glow
-                </p>
+          {/* Overhead Gallery Lamp & Bookends Toggles */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between rounded-lg border ui-surface-card px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <Lamp className="w-4 h-4 text-[#c89d54]" />
+                <div>
+                  <p className="text-sm font-medium ui-text-primary">
+                    Gallery Sconce Light
+                  </p>
+                  <p className="text-xs ui-text-muted">
+                    Soft overhead ambient shelf glow
+                  </p>
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showSconce}
-              onClick={() =>
-                onUpdateMeta({
-                  configuration: {
-                    ...bookshelf.configuration,
-                    showSconceLight: !showSconce,
-                  },
-                })
-              }
-              className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
-                showSconce ? 'bg-[#c99b4c]' : 'bg-black/25'
-              }`}
-            >
-              <span
-                className={`block w-5 h-5 rounded-full bg-[#fff5e2] shadow transition-transform ${
-                  showSconce ? 'translate-x-5' : 'translate-x-0'
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showSconce}
+                onClick={() =>
+                  onUpdateMeta({
+                    configuration: {
+                      ...bookshelf.configuration,
+                      showSconceLight: !showSconce,
+                    },
+                  })
+                }
+                className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
+                  showSconce ? 'bg-[#c99b4c]' : 'bg-black/25'
                 }`}
-              />
-            </button>
-          </div>
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-[#fff5e2] shadow transition-transform ${
+                    showSconce ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
 
+            <div className="flex items-center justify-between rounded-lg border ui-surface-card px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <Frame className="w-4 h-4 text-[#c89d54]" />
+                <div>
+                  <p className="text-sm font-medium ui-text-primary">
+                    Brass Bookends
+                  </p>
+                  <p className="text-xs ui-text-muted">
+                    Hold partially-filled shelves naturally
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showBookends}
+                onClick={() =>
+                  onUpdateMeta({
+                    configuration: {
+                      ...bookshelf.configuration,
+                      showBookends: !showBookends,
+                    },
+                  })
+                }
+                className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
+                  showBookends ? 'bg-[#c99b4c]' : 'bg-black/25'
+                }`}
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-[#fff5e2] shadow transition-transform ${
+                    showBookends ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {showArchitecture && (
+          <>
           {/* One-Click Auto-Arrange Shelf */}
           {onSortShelf && totalBooksOnShelf > 1 && (
             <div className="rounded-lg border ui-surface-card p-3.5 space-y-2.5">
@@ -708,6 +785,8 @@ export function ShelfCustomizerDrawer({
               </div>
             ))}
           </div>
+          </>
+          )}
 
           {/* Delete Bookshelf (only when user has > 1 shelf) */}
           {canDelete && onDeleteShelf && (

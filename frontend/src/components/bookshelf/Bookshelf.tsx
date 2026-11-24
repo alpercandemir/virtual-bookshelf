@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   closestCorners,
   DndContext,
@@ -15,26 +15,44 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import {
   computeOccupiedWidthPx,
-  dimensionsToShelfPixels,
   getCompartmentCapacityPx,
   getRoomThemeMeta,
+  type BookOrientation,
   type BookshelfDto,
+  type BookVisualOverrides,
+  type ReadingStatus,
   type ShelfBookDto,
   type ShelfCompartmentDto,
 } from '@bookshelf/shared';
-import { X } from 'lucide-react';
-import { BookVisual } from './Book';
+import {
+  Bookmark,
+  BookOpen,
+  CheckCircle2,
+  Circle,
+  Eye,
+  Layers,
+  X,
+} from 'lucide-react';
+import { BookVisual, type ShelfSpotlightMode } from './Book';
 import { ShelfCompartment } from './ShelfCompartment';
 
 export interface BookshelfProps {
   bookshelf: BookshelfDto;
   onSelectBook: (shelfBook: ShelfBookDto) => void;
+  onQuickUpdateBook?: (
+    shelfBookId: string,
+    payload: {
+      orientation?: BookOrientation;
+      visualOverrides?: BookVisualOverrides;
+    }
+  ) => Promise<unknown>;
   onQuickAddToCompartment?: (compartmentId: string) => void;
   onReorderComplete?: (
     updatedBookshelf: BookshelfDto,
     payload: Array<{ compartmentId: string; shelfBookIds: string[] }>
   ) => void;
   onInvalidDrop?: (reason: string) => void;
+  spotlight?: ShelfSpotlightMode;
   recentlyAddedId?: string | null;
   locateRequest?: { bookId: string } | null;
   onLocated?: () => void;
@@ -74,32 +92,32 @@ function canFitBook(
 ): boolean {
   const alreadyInside = targetComp.books.some((b) => b.id === movingBook.id);
   if (alreadyInside) return true;
-  const occupied = computeOccupiedWidthPx(
-    targetComp.books.map((b) => ({
-      dimensions: b.book.physicalDimensions,
-      orientation: b.orientation,
-    })),
+  const nextOccupied = computeOccupiedWidthPx(
+    [
+      ...targetComp.books.map((b) => ({
+        dimensions: b.book.physicalDimensions,
+        orientation: b.orientation,
+      })),
+      {
+        dimensions: movingBook.book.physicalDimensions,
+        orientation: movingBook.orientation,
+      },
+    ],
     targetComp.heightPx
   );
-  const incomingPx = dimensionsToShelfPixels(
-    movingBook.book.physicalDimensions,
-    targetComp.heightPx
-  );
-  const incomingWidth =
-    movingBook.orientation === 'face-out'
-      ? Math.min(incomingPx.depthPx, 148) + 6
-      : incomingPx.spineWidthPx + 2;
 
   const capacity = getCompartmentCapacityPx(targetComp.widthRatio);
-  return occupied + incomingWidth <= capacity + 16;
+  return nextOccupied <= capacity + 16;
 }
 
 export function Bookshelf({
   bookshelf,
   onSelectBook,
+  onQuickUpdateBook,
   onQuickAddToCompartment,
   onReorderComplete,
   onInvalidDrop,
+  spotlight = 'all',
   recentlyAddedId,
   locateRequest,
   onLocated,
@@ -115,8 +133,29 @@ export function Bookshelf({
   const [invalidCompartmentId, setInvalidCompartmentId] = React.useState<
     string | null
   >(null);
+  const [contextMenu, setContextMenu] = React.useState<{
+    book: ShelfBookDto;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const displayedCompartments = draftCompartments ?? bookshelf.compartments;
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [contextMenu]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -150,22 +189,30 @@ export function Bookshelf({
       }));
   }, [displayedCompartments]);
 
-  const compartments = levels.flatMap(level => level.compartments);
+  const compartments = levels.flatMap((level) => level.compartments);
   const [phoneCompartmentId, setPhoneCompartmentId] = React.useState<string>();
   const [selection, setSelection] = React.useState<{ bookId: string } | null>(null);
   const stageRef = React.useRef<HTMLElement>(null);
-  const touch = React.useRef<{ x: number; y: number; row: HTMLElement | null; scrollLeft: number; panning: boolean } | null>(null);
+  const touch = React.useRef<{
+    x: number;
+    y: number;
+    row: HTMLElement | null;
+    scrollLeft: number;
+    panning: boolean;
+  } | null>(null);
   const match = selection ? findBookAndCompartment(compartments, selection.bookId) : null;
   const selected = match?.book;
   const selectedComp = match?.compartment;
-  const currentComp = compartments.find(comp => comp.id === phoneCompartmentId) ?? compartments[0];
-  const label = (comp: ShelfCompartmentDto) => comp.settings.label || `Level ${comp.row + 1}, column ${comp.column + 1}`;
+  const currentComp =
+    compartments.find((comp) => comp.id === phoneCompartmentId) ?? compartments[0];
+  const label = (comp: ShelfCompartmentDto) =>
+    comp.settings.label || `Level ${comp.row + 1}, column ${comp.column + 1}`;
 
   React.useLayoutEffect(() => {
     if (!locateRequest) return;
-    const match = findBookAndCompartment(bookshelf.compartments, locateRequest.bookId);
-    if (match?.book) {
-      setPhoneCompartmentId(match.compartment.id);
+    const found = findBookAndCompartment(bookshelf.compartments, locateRequest.bookId);
+    if (found?.book) {
+      setPhoneCompartmentId(found.compartment.id);
       setSelection(locateRequest);
     }
     onLocated?.();
@@ -173,12 +220,16 @@ export function Bookshelf({
 
   React.useLayoutEffect(() => {
     if (!selection) return;
-    const slot = stageRef.current?.querySelector<HTMLElement>(`[data-book-id="${CSS.escape(selection.bookId)}"]`);
+    const slot = stageRef.current?.querySelector<HTMLElement>(
+      `[data-book-id="${CSS.escape(selection.bookId)}"]`
+    );
     slot?.querySelector('button')?.focus({ preventScroll: true });
     slot?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     if (slot) {
       slot.dataset.located = 'true';
-      return () => { delete slot.dataset.located; };
+      return () => {
+        delete slot.dataset.located;
+      };
     }
   }, [selection]);
 
@@ -192,12 +243,24 @@ export function Bookshelf({
 
   const inspect = (book: ShelfBookDto) => {
     setSelection(null);
+    setContextMenu(null);
     onSelectBook(book);
+  };
+
+  const handleOpenContextMenu = (
+    book: ShelfBookDto,
+    coords: { x: number; y: number }
+  ) => {
+    if (!onQuickUpdateBook) return;
+    const clampedX = Math.min(coords.x, Math.max(12, window.innerWidth - 236));
+    const clampedY = Math.min(coords.y, Math.max(12, window.innerHeight - 280));
+    setContextMenu({ book, x: clampedX, y: clampedY });
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     touch.current = null;
     setSelection(null);
+    setContextMenu(null);
     const id = String(event.active.id);
     const found = findBookAndCompartment(bookshelf.compartments, id);
     if (found?.book) {
@@ -322,7 +385,6 @@ export function Bookshelf({
       return;
     }
 
-    // Check if ordering actually changed
     const origSig = bookshelf.compartments
       .map((c) => `${c.id}:${c.books.map((b) => b.id).join(',')}`)
       .join('|');
@@ -348,6 +410,7 @@ export function Bookshelf({
   };
 
   const showSconce = bookshelf.configuration.showSconceLight !== false;
+  const showBookends = bookshelf.configuration.showBookends !== false;
   const cabinetStyle =
     bookshelf.configuration.cabinetStyle ??
     getRoomThemeMeta(bookshelf.roomTheme).defaultCabinetStyle;
@@ -365,33 +428,53 @@ export function Bookshelf({
         ref={stageRef}
         data-export={forExport || undefined}
         aria-label={bookshelf.name}
-        onKeyDown={event => {
-          if (!selection || event.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return;
+        onKeyDown={(event) => {
+          if (
+            !selection ||
+            event.key !== 'Escape' ||
+            document.querySelector('[aria-modal="true"]')
+          )
+            return;
           setSelection(null);
           event.preventDefault();
           event.stopPropagation();
         }}
-        onTouchStart={event => {
-          if (event.touches.length !== 1) { touch.current = null; return; }
+        onTouchStart={(event) => {
+          if (event.touches.length !== 1) {
+            touch.current = null;
+            return;
+          }
           const point = event.touches[0];
           const book = (event.target as HTMLElement).closest('.book-slot');
           const row = book?.closest<HTMLElement>('.shelf-books-row') ?? null;
-          touch.current = { x: point.clientX, y: point.clientY, row, scrollLeft: row?.scrollLeft ?? 0, panning: false };
+          touch.current = {
+            x: point.clientX,
+            y: point.clientY,
+            row,
+            scrollLeft: row?.scrollLeft ?? 0,
+            panning: false,
+          };
         }}
-        onTouchMove={event => {
+        onTouchMove={(event) => {
           const start = touch.current;
           if (!start?.row || !window.matchMedia('(max-width: 639px)').matches) return;
           const dx = event.touches[0].clientX - start.x;
           const dy = event.touches[0].clientY - start.y;
           if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < 8) return;
           const row = start.row;
-          if (dx > 0 ? start.scrollLeft > 1 : start.scrollLeft + row.clientWidth < row.scrollWidth - 1) {
+          if (
+            dx > 0
+              ? start.scrollLeft > 1
+              : start.scrollLeft + row.clientWidth < row.scrollWidth - 1
+          ) {
             row.scrollLeft = start.scrollLeft - dx;
             start.panning = true;
           }
         }}
-        onTouchCancel={() => { touch.current = null; }}
-        onTouchEnd={event => {
+        onTouchCancel={() => {
+          touch.current = null;
+        }}
+        onTouchEnd={(event) => {
           const start = touch.current;
           touch.current = null;
           if (!start || !window.matchMedia('(max-width: 639px)').matches) return;
@@ -401,29 +484,40 @@ export function Bookshelf({
           if (start.panning) return;
           navigate(dx < 0 ? 1 : -1);
         }}
-        className="bookshelf-stage w-full px-1 sm:px-6 pt-2 sm:pt-3 pb-6 sm:pb-10"
+        className="bookshelf-stage w-full px-1 sm:px-6 pt-2 sm:pt-4 pb-6 sm:pb-10"
       >
         {!forExport && currentComp && (
           <nav className="compartment-nav sm:hidden" aria-label="Bookcase map">
             <div className="min-w-0">
               <p className="font-display text-xl">{label(currentComp)}</p>
-              <p className="text-xs ui-text-secondary">{compartments.indexOf(currentComp) + 1} of {compartments.length} compartments</p>
+              <p className="text-xs ui-text-secondary">
+                {compartments.indexOf(currentComp) + 1} of {compartments.length} compartments
+              </p>
             </div>
             <div className="compartment-map">
-              {levels.map(level => (
+              {levels.map((level) => (
                 <div key={level.row}>
-                  {level.compartments.map(comp => (
-                    <button type="button" key={comp.id} style={{ flexGrow: comp.widthRatio }}
-                      aria-label={`Show ${label(comp)}`} aria-pressed={comp.id === currentComp.id}
-                      onClick={() => { setPhoneCompartmentId(comp.id); setSelection(null); }} />
+                  {level.compartments.map((comp) => (
+                    <button
+                      type="button"
+                      key={comp.id}
+                      style={{ flexGrow: comp.widthRatio }}
+                      aria-label={`Show ${label(comp)}`}
+                      aria-pressed={comp.id === currentComp.id}
+                      onClick={() => {
+                        setPhoneCompartmentId(comp.id);
+                        setSelection(null);
+                      }}
+                    />
                   ))}
                 </div>
               ))}
             </div>
           </nav>
         )}
+
         {/* Horizontally scrollable viewport wrapper on narrow screens to keep book spines readable */}
-        <div className="library-scroll overflow-x-auto pb-4 sm:pb-5 pt-3 sm:pt-4">
+        <div className="library-scroll overflow-x-auto pb-4 sm:pb-5 pt-4 sm:pt-6">
           <div className="relative mx-auto w-full max-w-[1040px] sm:min-w-[720px] px-3 sm:px-6">
             {/* Warm Overhead Brass Gallery Lamp & Sconce Glow */}
             {showSconce && (
@@ -440,6 +534,7 @@ export function Bookshelf({
               className="bookshelf-cabinet"
               data-theme={bookshelf.visualTheme}
               data-cabinet-style={cabinetStyle}
+              data-spotlight-active={spotlight !== 'all' ? 'true' : undefined}
               data-testid="bookshelf-cabinet"
             >
               {/* Stepped Antique Crown Cornice */}
@@ -457,8 +552,13 @@ export function Bookshelf({
                 />
 
                 <div className="bookshelf-interior">
-                  {levels.map((level) => (
-                    <div key={level.row} className="shelf-level w-full" data-phone-current={level.row === currentComp?.row || undefined}>
+                  {levels.map((level, levelIdx) => (
+                    <div
+                      key={level.row}
+                      className="shelf-level w-full"
+                      data-level-index={levelIdx}
+                      data-phone-current={level.row === currentComp?.row || undefined}
+                    >
                       {/* Compartment Row */}
                       <div className="shelf-level-row">
                         {level.compartments.map((comp, idx) => (
@@ -473,7 +573,10 @@ export function Bookshelf({
                               compartment={comp}
                               currentOnPhone={comp.id === currentComp?.id}
                               onSelectBook={inspect}
+                              onContextMenuBook={handleOpenContextMenu}
                               onQuickAddToCompartment={onQuickAddToCompartment}
+                              spotlight={spotlight}
+                              showBookends={showBookends}
                               recentlyAddedId={recentlyAddedId}
                               isDropTarget={hoverCompartmentId === comp.id}
                               isDropInvalid={invalidCompartmentId === comp.id}
@@ -492,11 +595,15 @@ export function Bookshelf({
                               data-phone-current={comp.id === currentComp?.id || undefined}
                               style={{ flexGrow: comp.widthRatio, flexBasis: 0 }}
                             >
-                              {(comp.settings.label || currentComp?.id === comp.id) && (
+                              {comp.settings.label ? (
                                 <span className="shelf-brass-plaque">
+                                  {comp.settings.label}
+                                </span>
+                              ) : currentComp?.id === comp.id ? (
+                                <span className="shelf-brass-plaque sm:hidden">
                                   {label(comp)}
                                 </span>
-                              )}
+                              ) : null}
                             </div>
                           </React.Fragment>
                         ))}
@@ -519,25 +626,146 @@ export function Bookshelf({
             </div>
           </div>
         </div>
+
         {selected && selectedComp && selection && (
           <div className="shelf-selection ui-surface-panel" aria-label="Selected book">
             <div className="min-w-0 flex-1" role="status">
               <p className="font-display text-lg leading-tight">{selected.book.title}</p>
-              <p className="text-xs ui-text-secondary">{bookshelf.name} · {label(selectedComp)} · {ordinal(selectedComp.books.findIndex(book => book.id === selected.id) + 1)} from left</p>
+              <p className="text-xs ui-text-secondary">
+                {bookshelf.name} · {label(selectedComp)} ·{' '}
+                {ordinal(
+                  selectedComp.books.findIndex((book) => book.id === selected.id) + 1
+                )}{' '}
+                from left
+              </p>
             </div>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={() => inspect(selected)}>Open details</button>
-              <button type="button" aria-label="Return book to shelf" onClick={() => {
-                stageRef.current?.querySelector<HTMLButtonElement>(`[data-book-id="${CSS.escape(selected.id)}"] button`)?.focus();
-                setSelection(null);
-              }}><X size={16} /></button>
+              <button type="button" onClick={() => inspect(selected)}>
+                Open details
+              </button>
+              <button
+                type="button"
+                aria-label="Return book to shelf"
+                onClick={() => {
+                  stageRef.current
+                    ?.querySelector<HTMLButtonElement>(
+                      `[data-book-id="${CSS.escape(selected.id)}"] button`
+                    )
+                    ?.focus();
+                  setSelection(null);
+                }}
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
       </section>
 
+      {/* Right-Click Direct Manipulation Context Menu */}
+      {contextMenu && onQuickUpdateBook && (
+        <div
+          role="menu"
+          aria-label={`Quick actions for ${contextMenu.book.book.title}`}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+          className="fixed z-50 w-56 rounded-xl border ui-surface-panel shadow-[0_22px_48px_rgba(0,0,0,0.55)] p-1.5 text-xs"
+        >
+          <div className="px-2.5 py-1.5 border-b ui-surface-header mb-1">
+            <p className="font-display text-sm font-semibold ui-text-primary truncate">
+              {contextMenu.book.book.title}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => inspect(contextMenu.book)}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg ui-text-primary hover:bg-[#cfa458]/15 cursor-pointer"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-[#c89d54]" />
+            Inspect Book
+          </button>
+
+          <p className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-wider ui-text-muted">
+            Reading Status
+          </p>
+          <div className="grid grid-cols-3 gap-1 px-1 pb-1">
+            {(
+              [
+                { id: 'unread', label: 'Unread', Icon: Circle },
+                { id: 'reading', label: 'Reading', Icon: Bookmark },
+                { id: 'finished', label: 'Done', Icon: CheckCircle2 },
+              ] as Array<{ id: ReadingStatus; label: string; Icon: typeof Circle }>
+            ).map(({ id, label: stLabel, Icon }) => {
+              const active =
+                (contextMenu.book.visualOverrides.readingStatus ?? 'unread') === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    void onQuickUpdateBook(contextMenu.book.id, {
+                      visualOverrides: { readingStatus: id },
+                    });
+                    setContextMenu(null);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 px-1 border transition cursor-pointer ${
+                    active
+                      ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                      : 'border-transparent ui-text-secondary hover:bg-[#cfa458]/10'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span className="text-[10px]">{stLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="px-2.5 pt-1.5 pb-1 text-[10px] uppercase tracking-wider ui-text-muted">
+            Shelf Pose
+          </p>
+          <div className="grid grid-cols-2 gap-1 px-1 pb-1">
+            {(
+              [
+                { id: 'vertical', label: 'Upright' },
+                { id: 'face-out', label: 'Face Out', Icon: Eye },
+                { id: 'stacked', label: 'Stack Flat', Icon: Layers },
+                { id: 'leaning-left', label: 'Lean Left' },
+              ] as Array<{
+                id: BookOrientation;
+                label: string;
+                Icon?: typeof Eye;
+              }>
+            ).map(({ id, label: poseLabel, Icon }) => {
+              const active = contextMenu.book.orientation === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    void onQuickUpdateBook(contextMenu.book.id, { orientation: id });
+                    setContextMenu(null);
+                  }}
+                  className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 border transition cursor-pointer ${
+                    active
+                      ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                      : 'border-transparent ui-text-secondary hover:bg-[#cfa458]/10'
+                  }`}
+                >
+                  {Icon && <Icon className="w-3 h-3" />}
+                  <span>{poseLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Floating Physical 3D Book Drag Preview */}
-      <DragOverlay dropAnimation={{ duration: 210, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
+      <DragOverlay
+        dropAnimation={{ duration: 210, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
+      >
         {activeBook ? (
           <BookVisual
             shelfBook={activeBook}

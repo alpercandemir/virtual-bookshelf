@@ -75,7 +75,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Create New Bookshelf"
@@ -85,12 +85,12 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
     >
       <div
         data-testid="create-shelf-modal"
-        className="w-full max-w-xl max-h-[92dvh] sm:max-h-[90vh] rounded-2xl border border-[#cfa55a]/30 bg-[#1a130e] text-[#f5ead7] shadow-[0_32px_80px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden"
+        className="w-full max-w-xl max-h-[92dvh] sm:max-h-[90vh] rounded-2xl border ui-surface-panel shadow-[0_32px_80px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden"
       >
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#c9a15c]/15 bg-[#140e0a] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b ui-surface-header flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Library className="w-4 h-4 text-[#dfb86d]" />
-            <h2 className="font-display text-2xl font-semibold">
+            <Library className="w-4 h-4 text-[#c89d54]" />
+            <h2 className="font-display text-2xl font-semibold ui-text-primary">
               Craft a New Bookshelf
             </h2>
           </div>
@@ -98,7 +98,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="p-2 sm:p-1.5 rounded-lg text-[#a99479] hover:text-[#f6e8d0] cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-lg ui-text-muted hover:ui-text-primary cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -109,7 +109,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
           className="flex-1 overflow-y-auto library-scroll p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-5"
         >
           {error && (
-            <div className="rounded-lg border border-red-400/35 bg-red-950/45 px-3.5 py-2 text-xs text-red-100">
+            <div className="rounded-lg border ui-alert-danger px-3.5 py-2 text-xs">
               {error}
             </div>
           )}
@@ -117,7 +117,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
           {/* Shelf Name & Year/Tag */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="block text-xs uppercase tracking-widest text-[#bca688] mb-1.5">
+              <label className="block text-xs uppercase tracking-widest ui-text-muted mb-1.5">
                 Bookshelf Name *
               </label>
               <input
@@ -128,16 +128,16 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. 2026 Reading Room"
-                className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 px-3.5 py-2 text-base sm:text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
+                className="w-full rounded-lg ui-surface-input border px-3.5 py-2 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
               />
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-widest text-[#bca688] mb-1.5">
+              <label className="block text-xs uppercase tracking-widest ui-text-muted mb-1.5">
                 Year / Tag
               </label>
               <div className="relative">
-                <Tag className="w-3.5 h-3.5 text-[#8f7b62] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Tag className="w-3.5 h-3.5 ui-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   maxLength={32}
@@ -145,7 +145,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                   value={tag}
                   onChange={(e) => setTag(e.target.value)}
                   placeholder="2026"
-                  className="w-full rounded-lg bg-[#110c09] border border-[#c9a15c]/25 pl-8 pr-3 py-2 text-base sm:text-sm text-[#f7eedf] focus:outline-none focus:border-[#dfb86d]"
+                  className="w-full rounded-lg ui-surface-input border pl-8 pr-3 py-2 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
                 />
               </div>
             </div>
@@ -160,8 +160,8 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                 onClick={() => setTag(chip)}
                 className={`px-2.5 py-0.5 rounded-full text-[11px] border transition cursor-pointer ${
                   tag === chip
-                    ? 'bg-[#cfa458] text-[#1a1107] border-[#e5c27b] font-medium'
-                    : 'bg-[#140e0a] text-[#bca78b] border-[#c9a15c]/20 hover:border-[#c9a15c]/45'
+                    ? 'bg-[#cfa458] text-[#1a1107] border-[#e5c27b] font-semibold'
+                    : 'ui-surface-card ui-text-secondary hover:border-[#cfa458]/55'
                 }`}
               >
                 {chip}
@@ -171,7 +171,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
 
           {/* Room & Interior Design Theme */}
           <div>
-            <p className="text-xs uppercase tracking-widest text-[#bca688] mb-2">
+            <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
               Room &amp; Wall Theme
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -184,8 +184,8 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                     onClick={() => handleSelectRoom(theme.id)}
                     className={`text-left rounded-lg overflow-hidden border transition cursor-pointer ${
                       active
-                        ? 'border-[#e0b86c] ring-1 ring-[#e0b86c]/55 bg-[#271c13]'
-                        : 'border-[#c9a15c]/18 hover:border-[#c9a15c]/45 bg-[#140e0a]'
+                        ? 'border-[#cfa458] ring-2 ring-[#cfa458]/40 ui-surface-card'
+                        : 'ui-surface-card hover:border-[#cfa458]/55'
                     }`}
                   >
                     <div
@@ -198,10 +198,10 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                       />
                     </div>
                     <div className="p-2">
-                      <p className="text-xs font-semibold text-[#f3e5cd] truncate">
+                      <p className="text-xs font-semibold ui-text-primary truncate">
                         {theme.name}
                       </p>
-                      <p className="text-[10px] text-[#9c886f] truncate">
+                      <p className="text-[10px] ui-text-muted truncate">
                         {theme.brandInspiration}
                       </p>
                     </div>
@@ -213,7 +213,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
 
           {/* Wood / Material Finish */}
           <div>
-            <p className="text-xs uppercase tracking-widest text-[#bca688] mb-2">
+            <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
               Cabinet Material Finish
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -224,15 +224,15 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                   onClick={() => setVisualTheme(w.id)}
                   className={`rounded-lg overflow-hidden border text-center transition cursor-pointer ${
                     visualTheme === w.id
-                      ? 'border-[#e2bc71] ring-1 ring-[#e2bc71]/60'
-                      : 'border-[#c9a15c]/20 hover:border-[#c9a15c]/45'
+                      ? 'border-[#cfa458] ring-2 ring-[#cfa458]/45'
+                      : 'ui-surface-card hover:border-[#cfa458]/55'
                   }`}
                 >
                   <div
                     className="h-7 w-full bg-cover bg-center"
                     style={{ backgroundImage: w.bg }}
                   />
-                  <span className="block py-1 text-[10px] text-[#e7d6ba] bg-[#140e0a] truncate px-1">
+                  <span className="block py-1 text-[10px] ui-text-primary ui-surface-card truncate px-1">
                     {w.label}
                   </span>
                 </button>
@@ -243,7 +243,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
           {/* Levels & Starter Books */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-widest text-[#bca688] mb-1.5">
+              <p className="text-xs uppercase tracking-widest ui-text-muted mb-1.5">
                 Shelf Levels
               </p>
               <div className="flex items-center gap-1.5">
@@ -254,8 +254,8 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
                     onClick={() => setLevelCount(n)}
                     className={`w-8 h-8 rounded-md text-xs font-medium border cursor-pointer ${
                       levelCount === n
-                        ? 'bg-[#cfa458] text-[#1a1107] border-[#e2be79]'
-                        : 'bg-[#140e0a] text-[#cbb698] border-[#c9a15c]/20'
+                        ? 'bg-[#cfa458] text-[#1a1107] border-[#e2be79] font-semibold'
+                        : 'ui-surface-card ui-text-secondary hover:border-[#cfa458]/55'
                     }`}
                   >
                     {n}
@@ -264,14 +264,14 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
               </div>
             </div>
 
-            <label className="inline-flex items-center gap-2 text-xs text-[#d6c2a5] cursor-pointer pt-4">
+            <label className="inline-flex items-center gap-2 text-xs ui-text-secondary cursor-pointer pt-4">
               <input
                 type="checkbox"
                 checked={seedSamples}
                 onChange={(e) => setSeedSamples(e.target.checked)}
                 className="accent-[#c89d54]"
               />
-              <Sparkles className="w-3.5 h-3.5 text-[#dfb86d]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#c89d54]" />
               Pre-stock with classic editions
             </label>
           </div>
@@ -280,7 +280,7 @@ export function CreateShelfModal({ open, onClose, onCreate }: CreateShelfModalPr
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[#c9a15c]/25 px-4 py-2 text-xs text-[#cbb697] hover:bg-[#251b13] cursor-pointer"
+              className="rounded-lg border ui-surface-input px-4 py-2 text-xs ui-text-secondary hover:ui-text-primary cursor-pointer"
             >
               Cancel
             </button>

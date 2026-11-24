@@ -6,7 +6,11 @@ import {
   Bookmark,
   BookOpen,
   CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Info,
+  Layers,
   MoveHorizontal,
   Palette,
   RotateCw,
@@ -40,6 +44,8 @@ interface BookRevealModalProps {
   shelfBook: ShelfBookDto | null;
   bookshelf: BookshelfDto;
   allBookshelves?: BookshelfDto[];
+  shelfBooks?: ShelfBookDto[];
+  onNavigateBook?: (shelfBookId: string) => void;
   onClose: () => void;
   onUpdateBook: (
     shelfBookId: string,
@@ -81,19 +87,30 @@ const ORIENTATION_OPTIONS: Array<{ value: BookOrientation; label: string }> = [
   { value: 'leaning-left', label: 'Lean Left' },
   { value: 'leaning-right', label: 'Lean Right' },
   { value: 'face-out', label: 'Face Out' },
+  { value: 'stacked', label: 'Stack Flat' },
 ];
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, v));
+}
 
 export function BookRevealModal({
   shelfBook,
   bookshelf,
   allBookshelves,
+  shelfBooks,
+  onNavigateBook,
   onClose,
   onUpdateBook,
   onRemoveBook,
   onToast,
 }: BookRevealModalProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'appearance' | 'position'>('details');
-  const [view3D, setView3D] = useState<'front' | 'spine'>('front');
+  const [view3D, setView3D] = useState<'front' | 'spine' | 'back'>('front');
+  const [rotY, setRotY] = useState(-24);
+  const [rotX, setRotX] = useState(4);
+  const [dragging3D, setDragging3D] = useState(false);
+  const [showDimensionNote, setShowDimensionNote] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -103,11 +120,26 @@ export function BookRevealModal({
 
   const coverUploadRef = useRef<HTMLInputElement>(null);
   const spineUploadRef = useRef<HTMLInputElement>(null);
+  const dragStartRef = useRef<{ x: number; y: number; rotY: number; rotX: number } | null>(null);
+
+  const currentIdx = useMemo(() => {
+    if (!shelfBook || !shelfBooks?.length) return -1;
+    return shelfBooks.findIndex((b) => b.id === shelfBook.id);
+  }, [shelfBook, shelfBooks]);
+
+  const prevBook = currentIdx > 0 && shelfBooks ? shelfBooks[currentIdx - 1] : null;
+  const nextBook =
+    currentIdx >= 0 && shelfBooks && currentIdx < shelfBooks.length - 1
+      ? shelfBooks[currentIdx + 1]
+      : null;
 
   useEffect(() => {
     setCoverFailed(false);
     setConfirmRemove(false);
     setView3D('front');
+    setRotY(-24);
+    setRotX(4);
+    setShowDimensionNote(false);
     setActiveTab('details');
     setNotesDraft(shelfBook?.visualOverrides.notes ?? '');
     setMoveError(null);
@@ -116,11 +148,23 @@ export function BookRevealModal({
   useEffect(() => {
     if (!shelfBook) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'ArrowLeft' && prevBook && onNavigateBook) {
+        e.preventDefault();
+        onNavigateBook(prevBook.id);
+      } else if (e.key === 'ArrowRight' && nextBook && onNavigateBook) {
+        e.preventDefault();
+        onNavigateBook(nextBook.id);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [shelfBook, onClose]);
+  }, [shelfBook, onClose, prevBook, nextBook, onNavigateBook]);
 
   const appearance = useMemo(() => {
     if (!shelfBook) return null;
@@ -141,9 +185,51 @@ export function BookRevealModal({
   const { book } = shelfBook;
   const dims = book.physicalDimensions;
   const coverSrc = getProxiedCoverUrl(appearance.customCoverUrl || book.coverUrl);
+  const spineImageSrc = getProxiedCoverUrl(appearance.customSpineUrl);
   const currentComp = bookshelf.compartments.find(
     (c) => c.id === shelfBook.compartmentId
   );
+
+  // Real physical proportions for the interactive 3D volume
+  const book3dH = Math.round(clamp(dims.heightMm * 1.28, 236, 336));
+  const aspectRatio = clamp(dims.widthMm / Math.max(100, dims.heightMm), 0.56, 0.86);
+  const book3dW = Math.round(clamp(book3dH * aspectRatio, 162, 234));
+  const book3dD = Math.round(clamp(dims.thicknessMm * 1.02, 18, 60));
+
+  const snapView = (target: 'front' | 'spine' | 'back') => {
+    setView3D(target);
+    if (target === 'front') {
+      setRotY(-24);
+      setRotX(4);
+    } else if (target === 'spine') {
+      setRotY(84);
+      setRotX(2);
+    } else {
+      setRotY(-162);
+      setRotX(3);
+    }
+  };
+
+  const handle3DPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging3D(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY, rotY, rotX };
+  };
+
+  const handle3DPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    const nextY = dragStartRef.current.rotY + dx * 0.75;
+    const nextX = clamp(dragStartRef.current.rotX - dy * 0.35, -28, 28);
+    setRotY(nextY);
+    setRotX(nextX);
+  };
+
+  const handle3DPointerUp = () => {
+    setDragging3D(false);
+    dragStartRef.current = null;
+  };
 
   const applyOverrides = async (overrides: BookVisualOverrides) => {
     setBusy(true);
@@ -273,9 +359,28 @@ export function BookRevealModal({
     }
   };
 
+  const primaryAuthor = book.authors.find((a) => a.trim().length > 0);
+  const authorSurname = primaryAuthor
+    ? parseAuthorNameForLastNameSort(primaryAuthor).lastName
+    : '';
+
+  const colophonParts = [
+    book.publicationDate,
+    book.publisher,
+    book.pageCount ? `${book.pageCount} pages` : null,
+    dims.format.replace('-', ' '),
+  ].filter(Boolean);
+
+  const ribPositions =
+    appearance.raisedBands === 5
+      ? ['12%', '29%', '50%', '71%', '87%']
+      : appearance.raisedBands === 4
+        ? ['14%', '36%', '64%', '86%']
+        : [];
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 sm:p-6 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 sm:p-6 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={`Book details for ${book.title}`}
@@ -285,31 +390,79 @@ export function BookRevealModal({
     >
       <div
         data-testid="book-reveal-modal"
-        className="relative w-full max-w-4xl max-h-[94dvh] rounded-2xl border border-[#cfa55a]/30 bg-gradient-to-b from-[#211812] to-[#16100c] shadow-[0_36px_90px_rgba(0,0,0,0.88)] overflow-y-auto md:overflow-hidden library-scroll flex flex-col md:flex-row"
+        className="relative w-full max-w-4xl max-h-[94dvh] rounded-2xl border ui-surface-panel shadow-[0_36px_90px_rgba(0,0,0,0.65)] overflow-y-auto md:overflow-hidden library-scroll flex flex-col md:flex-row"
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close book inspector"
-          className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 z-30 p-2.5 sm:p-2 rounded-full bg-[#140e0a]/90 border border-[#c9a15c]/30 text-[#c7b397] hover:text-[#fff2db] hover:border-[#dfb86e]/55 transition cursor-pointer"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {/* Top-Right Prev / Next Shelf Navigation & Close */}
+        <div className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 z-30 flex items-center gap-1.5">
+          {onNavigateBook && (prevBook || nextBook) && (
+            <div className="inline-flex items-center rounded-full border ui-surface-input shadow-sm overflow-hidden">
+              <button
+                type="button"
+                disabled={!prevBook}
+                onClick={() => prevBook && onNavigateBook(prevBook.id)}
+                title={prevBook ? `Previous: ${prevBook.book.title}` : 'First book on shelf'}
+                aria-label="Previous book on shelf"
+                className="p-2 ui-text-secondary hover:ui-text-primary disabled:opacity-30 transition cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={!nextBook}
+                onClick={() => nextBook && onNavigateBook(nextBook.id)}
+                title={nextBook ? `Next: ${nextBook.book.title}` : 'Last book on shelf'}
+                aria-label="Next book on shelf"
+                className="p-2 border-l ui-surface-header ui-text-secondary hover:ui-text-primary disabled:opacity-30 transition cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close book inspector"
+            className="p-2.5 sm:p-2 rounded-full ui-surface-input border ui-text-secondary hover:ui-text-primary hover:border-[#cfa458]/60 transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-        {/* Left Stage: Interactive 3D Physical Book Turning Out from Spine to Front Cover */}
-        <div className="md:w-[320px] shrink-0 bg-gradient-to-b from-[#291d14] via-[#1c130d] to-[#130d09] border-b md:border-b-0 md:border-r border-[#c9a15c]/18 flex flex-col items-center justify-center py-3 px-4 md:p-7 relative overflow-hidden">
-          {/* Subtle spotlight behind 3D book */}
+        {/* Left Stage: Proportional Interactive 360° 3D Physical Book */}
+        <div className="book-3d-stage md:w-[330px] shrink-0 border-b md:border-b-0 md:border-r ui-surface-header flex flex-col items-center justify-center py-4 px-4 md:p-7 relative overflow-hidden">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                'radial-gradient(circle at 50% 42%, rgba(235, 190, 114, 0.16) 0%, transparent 65%)',
+                'radial-gradient(circle at 50% 44%, rgba(218, 174, 96, 0.14) 0%, transparent 66%)',
             }}
           />
 
-          <div className="book-3d-scene relative z-10 scale-[0.68] md:scale-100 -my-12 md:my-0">
-            <div className="book-3d-object" data-view={view3D}>
+          <div
+            onPointerDown={handle3DPointerDown}
+            onPointerMove={handle3DPointerMove}
+            onPointerUp={handle3DPointerUp}
+            onPointerCancel={handle3DPointerUp}
+            title="Drag to spin 360°"
+            className={`book-3d-scene relative z-10 scale-[0.72] md:scale-100 -my-10 md:my-0 select-none touch-none ${
+              dragging3D ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+          >
+            <div
+              className="book-3d-object"
+              data-view={view3D}
+              data-dragging={dragging3D ? 'true' : undefined}
+              style={
+                {
+                  '--book-w': `${book3dW}px`,
+                  '--book-h': `${book3dH}px`,
+                  '--book-d': `${book3dD}px`,
+                  '--book-half-d': `${book3dD / 2}px`,
+                  transform: `rotateY(${rotY}deg) rotateX(${rotX}deg)`,
+                } as React.CSSProperties
+              }
+            >
               {/* 3D Front Cover */}
               <div
                 className="book-3d-front"
@@ -319,6 +472,7 @@ export function BookRevealModal({
                   <img
                     src={coverSrc}
                     alt={`Front cover of ${book.title}`}
+                    draggable={false}
                     onError={() => setCoverFailed(true)}
                     className="w-full h-full object-cover"
                   />
@@ -332,7 +486,6 @@ export function BookRevealModal({
                     appearance={appearance}
                   />
                 )}
-                {/* Subtle cover lighting sheen */}
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
@@ -343,7 +496,7 @@ export function BookRevealModal({
                 />
               </div>
 
-              {/* 3D Spine Face */}
+              {/* Authentic 3D Spine Face with Binding Texture, Ribs & Custom Spine Art */}
               <div
                 className="book-3d-spine-face flex items-center justify-center px-1"
                 style={{
@@ -351,81 +504,147 @@ export function BookRevealModal({
                   color: appearance.textColor,
                 }}
               >
+                {spineImageSrc && (
+                  <img
+                    src={spineImageSrc}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="absolute inset-0 w-full h-full object-cover z-1"
+                  />
+                )}
+                {(appearance.bindingStyle === 'hardcover-cloth' ||
+                  appearance.bindingStyle === 'vintage-linen') && (
+                  <div className="book-texture-linen" />
+                )}
+                {appearance.bindingStyle === 'hardcover-leather' && (
+                  <div className="book-texture-leather" />
+                )}
+                {appearance.bindingStyle === 'dust-jacket' && (
+                  <div className="book-texture-dustjacket" />
+                )}
+                {!spineImageSrc &&
+                  ribPositions.map((topPct) => (
+                    <div
+                      key={topPct}
+                      className="book-raised-rib"
+                      style={{ top: topPct }}
+                    />
+                  ))}
                 <div className="book-spine-lighting" />
-                <div className="book-spine-text-wrap">
-                  <div className="book-spine-title-area">
-                    <span className="book-spine-vertical-title font-display font-bold text-xs">
-                      {book.title}
-                    </span>
-                  </div>
-                  {(() => {
-                    const primary = book.authors.find((a) => a.trim().length > 0);
-                    const surname = primary
-                      ? parseAuthorNameForLastNameSort(primary).lastName
-                      : '';
-                    if (!surname) return null;
-                    return (
+                {!spineImageSrc && (
+                  <div className="book-spine-text-wrap">
+                    <div className="book-spine-title-area">
+                      <span className="book-spine-vertical-title font-display font-bold text-xs">
+                        {book.title}
+                      </span>
+                    </div>
+                    {authorSurname && (
                       <>
                         <span
                           className="book-spine-divider"
                           aria-hidden="true"
-                          style={{ backgroundColor: appearance.textColor }}
+                          style={{ backgroundColor: appearance.accentColor }}
                         />
                         <div className="book-spine-author-area">
-                          <span className="book-spine-vertical-title book-spine-author-surname font-sans text-[9px]">
-                            {surname}
+                          <span className="book-spine-vertical-author book-spine-author-surname font-sans text-[9px]">
+                            {authorSurname}
                           </span>
                         </div>
                       </>
-                    );
-                  })()}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Cream Page Edges */}
               <div className="book-3d-pages-right" aria-hidden="true" />
               <div className="book-3d-pages-top" aria-hidden="true" />
+              <div className="book-3d-pages-bottom" aria-hidden="true" />
+
+              {/* Styled Back Cover with Blurb & Publisher Colophon */}
               <div
-                className="book-3d-back"
-                style={{ backgroundColor: appearance.secondaryColor }}
-                aria-hidden="true"
-              />
+                className="book-3d-back flex flex-col justify-between p-5 overflow-hidden"
+                style={{
+                  background: `linear-gradient(160deg, ${appearance.secondaryColor} 0%, ${appearance.primaryColor} 100%)`,
+                  color: appearance.textColor,
+                }}
+              >
+                {(appearance.bindingStyle === 'hardcover-cloth' ||
+                  appearance.bindingStyle === 'vintage-linen') && (
+                  <div className="book-texture-linen" />
+                )}
+                {appearance.bindingStyle === 'hardcover-leather' && (
+                  <div className="book-texture-leather" />
+                )}
+                <div className="relative z-10 space-y-2">
+                  <p className="font-display text-sm font-semibold leading-tight opacity-90">
+                    {book.title}
+                  </p>
+                  <div
+                    className="h-[1px] w-8 opacity-60"
+                    style={{ backgroundColor: appearance.accentColor }}
+                  />
+                  <p className="text-[10px] leading-relaxed opacity-85 line-clamp-9 font-book-serif">
+                    {book.metadata.description ||
+                      `A personal library edition of ${book.title}${primaryAuthor ? ` by ${primaryAuthor}` : ''}.`}
+                  </p>
+                </div>
+                <div className="relative z-10 flex items-end justify-between gap-2 pt-2 border-t border-current/15 text-[8px] uppercase tracking-wider opacity-75">
+                  <span className="truncate">{book.publisher || 'Personal Collection'}</span>
+                  {book.isbn && <span className="font-mono shrink-0">{book.isbn}</span>}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* 3D Rotation Toggle */}
-          <div className="relative z-10 mt-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setView3D((prev) => (prev === 'front' ? 'spine' : 'front'))
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#c9a15c]/30 bg-[#1a120d]/90 hover:bg-[#2a1d14] px-3.5 py-1.5 text-xs text-[#e7d4b4] transition cursor-pointer"
-            >
-              <RotateCw className="w-3.5 h-3.5 text-[#dfb86d]" />
-              {view3D === 'front' ? 'Inspect Spine' : 'Turn to Front Cover'}
-            </button>
+          {/* 3D Rotation Controls */}
+          <div className="relative z-10 mt-5 flex flex-col items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => snapView(view3D === 'front' ? 'spine' : 'front')}
+                className="inline-flex items-center gap-1.5 rounded-full border ui-surface-input hover:border-[#cfa458]/60 px-3.5 py-1.5 text-xs ui-text-primary transition cursor-pointer"
+              >
+                <RotateCw className="w-3.5 h-3.5 text-[#c89d54]" />
+                {view3D === 'front' ? 'Inspect Spine' : 'Turn to Front Cover'}
+              </button>
+              <button
+                type="button"
+                onClick={() => snapView(view3D === 'back' ? 'front' : 'back')}
+                className={`rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
+                  view3D === 'back'
+                    ? 'bg-[#cfa458] text-[#1a1107] border-[#e2be79] font-semibold'
+                    : 'ui-surface-input ui-text-secondary hover:ui-text-primary'
+                }`}
+              >
+                Back
+              </button>
+            </div>
+            <span className="text-[10px] ui-text-muted">
+              Drag book to rotate 360°
+            </span>
           </div>
         </div>
 
-        {/* Right Panel: Metadata, Spine Customizer & Position Controls */}
+        {/* Right Panel: Editorial Ex Libris Colophon, Spine Studio & Position Controls */}
         <div className="flex-none md:flex-1 flex flex-col min-w-0 md:min-h-0 md:overflow-hidden">
           {/* Title & Sub-navigation */}
-          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-[#c9a15c]/15 md:pr-12">
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[#faf0de] leading-tight">
+          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b ui-surface-header md:pr-24">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold ui-text-primary leading-tight">
               {book.title}
             </h2>
             {book.metadata.subtitle && (
-              <p className="text-sm text-[#c6b296] italic mt-0.5 font-book-serif">
+              <p className="text-sm ui-text-secondary italic mt-0.5 font-book-serif">
                 {book.metadata.subtitle}
               </p>
             )}
-            <p className="text-sm text-[#dfb970] mt-1.5">
+            <p className="text-sm text-[#c89d54] font-medium mt-1">
               {book.authors.length > 0 ? book.authors.join(', ') : 'Unknown Author'}
             </p>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 mt-3.5 sm:mt-4 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 mt-3.5 overflow-x-auto no-scrollbar">
               {(
                 [
                   { id: 'details', label: 'Details', icon: BookOpen },
@@ -440,10 +659,10 @@ export function BookRevealModal({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap shrink-0 border ${
                       active
-                        ? 'bg-[#332417] text-[#f7e3bb] border border-[#d8b166]/45'
-                        : 'text-[#a8947b] hover:text-[#ebd9bc] hover:bg-[#221811]'
+                        ? 'bg-[#cfa458]/18 ui-text-primary border-[#cfa458]/60 font-semibold'
+                        : 'border-transparent ui-text-muted hover:ui-text-primary hover:bg-[#cfa458]/10'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -458,8 +677,94 @@ export function BookRevealModal({
           <div className="flex-none md:flex-1 md:overflow-y-auto library-scroll p-4 sm:p-6 space-y-5">
             {activeTab === 'details' && (
               <>
-                {/* Reading Progress, Rating & Personal Notes */}
-                <div className="rounded-xl bg-[#140e0a] border border-[#c9a15c]/22 p-3.5 space-y-3">
+                {/* Editorial Colophon Strip (replaces 4 separate metric boxes!) */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs ui-text-secondary">
+                    {colophonParts.map((part, i) => (
+                      <React.Fragment key={`${part}-${i}`}>
+                        {i > 0 && <span className="opacity-40">&middot;</span>}
+                        <span className={i === colophonParts.length - 1 ? 'capitalize' : ''}>
+                          {part}
+                        </span>
+                      </React.Fragment>
+                    ))}
+                    {book.isbn && (
+                      <>
+                        <span className="opacity-40">&middot;</span>
+                        <span className="font-mono text-[11px] ui-text-muted">
+                          ISBN {book.isbn}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Compact Expandable Physical Measurements Pill */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDimensionNote((v) => !v)}
+                      className="inline-flex items-center gap-1.5 rounded-full border ui-surface-card px-2.5 py-1 text-[11px] ui-text-secondary hover:border-[#cfa458]/55 transition cursor-pointer tabular-nums"
+                    >
+                      <Ruler className="w-3 h-3 text-[#c89d54]" />
+                      <span>
+                        {dims.heightMm} × {dims.widthMm} × {dims.thicknessMm} mm
+                      </span>
+                      {dims.source === 'estimated' && dims.estimationNote && (
+                        <ChevronDown
+                          className={`w-3 h-3 opacity-60 transition-transform ${
+                            showDimensionNote ? 'rotate-180' : ''
+                          }`}
+                        />
+                      )}
+                    </button>
+
+                    {dims.source === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 border border-emerald-500/35 px-2.5 py-0.5 text-[10px] font-medium text-emerald-500">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verified Measurements
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 border border-amber-500/35 px-2.5 py-0.5 text-[10px] font-medium text-amber-500">
+                        <Info className="w-3 h-3" />
+                        Estimated Dimensions
+                      </span>
+                    )}
+                  </div>
+
+                  {showDimensionNote && dims.source === 'estimated' && dims.estimationNote && (
+                    <p className="text-[11px] ui-text-muted leading-relaxed pl-1">
+                      {dims.estimationNote}.
+                    </p>
+                  )}
+                </div>
+
+                {/* Synopsis Elevated Front & Center */}
+                {book.metadata.description && (
+                  <div className="space-y-1.5">
+                    <h3 className="text-[10px] uppercase tracking-[0.2em] ui-text-muted font-medium">
+                      Synopsis
+                    </h3>
+                    <p className="text-[14px] leading-relaxed ui-text-primary/90 font-book-serif whitespace-pre-line">
+                      {book.metadata.description}
+                    </p>
+                  </div>
+                )}
+
+                {book.metadata.categories && book.metadata.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {book.metadata.categories.map((cat) => (
+                      <span
+                        key={cat}
+                        className="rounded-full border ui-surface-card px-2.5 py-0.5 text-[11px] ui-text-secondary"
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Ex Libris / Library Reading Card (Status, Rating & Marginalia) */}
+                <div className="rounded-xl border ui-surface-card p-4 space-y-3.5 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       {(
@@ -483,11 +788,11 @@ export function BookRevealModal({
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] border transition cursor-pointer ${
                               active
                                 ? st.id === 'reading'
-                                  ? 'bg-rose-950/80 border-rose-400/60 text-rose-100 font-semibold'
+                                  ? 'bg-rose-500/18 border-rose-500/60 text-rose-400 font-semibold'
                                   : st.id === 'finished'
-                                    ? 'bg-emerald-950/80 border-emerald-400/60 text-emerald-100 font-semibold'
-                                    : 'bg-[#362618] border-[#e0b86d] text-[#f7e3ba] font-semibold'
-                                : 'bg-[#1a120d] border-[#c9a15c]/20 text-[#ab967c] hover:text-[#f2e4cc]'
+                                    ? 'bg-emerald-500/18 border-emerald-500/60 text-emerald-500 font-semibold'
+                                    : 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                                : 'ui-surface-input ui-text-secondary hover:ui-text-primary'
                             }`}
                           >
                             {st.id === 'reading' && (
@@ -528,8 +833,8 @@ export function BookRevealModal({
                             <Star
                               className={`w-4 h-4 ${
                                 filled
-                                  ? 'text-[#e3b963] fill-[#e3b963]'
-                                  : 'text-[#6c5b49] hover:text-[#cfa55a]'
+                                  ? 'text-[#d8a94e] fill-[#d8a94e]'
+                                  : 'ui-text-muted opacity-50 hover:opacity-100 hover:text-[#cfa55a]'
                               }`}
                             />
                           </button>
@@ -540,13 +845,13 @@ export function BookRevealModal({
 
                   {/* Personal Marginalia / Notes */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1.5">
                       <label
                         htmlFor="book-personal-notes"
-                        className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#978269]"
+                        className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] ui-text-muted"
                       >
-                        <StickyNote className="w-3 h-3 text-[#cfa55a]" />
-                        Personal Notes
+                        <StickyNote className="w-3 h-3 text-[#c89d54]" />
+                        Marginalia &amp; Notes
                       </label>
                       {notesDraft !== (shelfBook.visualOverrides.notes ?? '') && (
                         <button
@@ -557,7 +862,7 @@ export function BookRevealModal({
                               notes: notesDraft.trim() || null,
                             })
                           }
-                          className="text-[11px] font-medium text-[#e5be72] hover:underline cursor-pointer"
+                          className="text-[11px] font-medium text-[#c89d54] hover:underline cursor-pointer"
                         >
                           Save Note
                         </button>
@@ -576,105 +881,10 @@ export function BookRevealModal({
                         }
                       }}
                       placeholder="Jot down a favorite quote, where you bought this edition, or reading reflections..."
-                      className="w-full rounded-lg bg-[#0f0a07] border border-[#c9a15c]/18 px-2.5 py-2 sm:py-1.5 text-base sm:text-xs text-[#efe2cc] placeholder:text-[#665644] focus:outline-none focus:border-[#d5ad62] resize-none"
+                      className="w-full rounded-lg ui-surface-input border px-3 py-2 text-base sm:text-xs font-book-serif placeholder:font-sans placeholder:opacity-50 focus:outline-none focus:border-[#cfa458] resize-none"
                     />
                   </div>
                 </div>
-
-                {/* Metadata Grid */}
-                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="rounded-lg bg-[#140e0a] border border-[#c9a15c]/14 p-3">
-                    <dt className="text-[10px] uppercase tracking-wider text-[#978269]">
-                      Published
-                    </dt>
-                    <dd className="mt-1 font-medium text-[#f1e4ce]">
-                      {book.publicationDate || 'Unknown'}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg bg-[#140e0a] border border-[#c9a15c]/14 p-3">
-                    <dt className="text-[10px] uppercase tracking-wider text-[#978269]">
-                      Pages
-                    </dt>
-                    <dd className="mt-1 font-medium text-[#f1e4ce]">
-                      {book.pageCount ? `${book.pageCount} pages` : 'Unspecified'}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg bg-[#140e0a] border border-[#c9a15c]/14 p-3 col-span-2 sm:col-span-1">
-                    <dt className="text-[10px] uppercase tracking-wider text-[#978269]">
-                      ISBN
-                    </dt>
-                    <dd className="mt-1 font-mono text-[11px] text-[#f1e4ce]">
-                      {book.isbn || '—'}
-                    </dd>
-                  </div>
-                  {book.publisher && (
-                    <div className="rounded-lg bg-[#140e0a] border border-[#c9a15c]/14 p-3 col-span-2 sm:col-span-3">
-                      <dt className="text-[10px] uppercase tracking-wider text-[#978269]">
-                        Publisher
-                      </dt>
-                      <dd className="mt-1 font-medium text-[#f1e4ce]">
-                        {book.publisher}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-
-                {/* Physical Dimensions Card (Clearly distinguishes Verified vs Estimated) */}
-                <div className="rounded-lg bg-[#140e0a] border border-[#c9a15c]/18 p-3.5">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ebd8b9]">
-                      <Ruler className="w-3.5 h-3.5 text-[#dab468]" />
-                      Physical Dimensions
-                    </span>
-                    {dims.source === 'verified' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Verified Measurements
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-950/70 border border-amber-500/35 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                        <Info className="w-3 h-3" />
-                        Estimated Dimensions
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-[#d6c5ab] tabular-nums">
-                    Height <strong className="text-[#f5e7cf]">{dims.heightMm} mm</strong> &middot;
-                    Spine <strong className="text-[#f5e7cf]">{dims.thicknessMm} mm</strong> &middot;
-                    Depth <strong className="text-[#f5e7cf]">{dims.widthMm} mm</strong> &middot;{' '}
-                    <span className="capitalize">{dims.format.replace('-', ' ')}</span>
-                  </p>
-                  {dims.source === 'estimated' && dims.estimationNote && (
-                    <p className="mt-1 text-[11px] text-[#98846c]">
-                      Note: {dims.estimationNote}.
-                    </p>
-                  )}
-                </div>
-
-                {/* Synopsis / Description */}
-                {book.metadata.description && (
-                  <div>
-                    <h3 className="text-xs uppercase tracking-widest text-[#ab967c] mb-1.5">
-                      Synopsis
-                    </h3>
-                    <p className="text-sm leading-relaxed text-[#dfd0b8] whitespace-pre-line">
-                      {book.metadata.description}
-                    </p>
-                  </div>
-                )}
-
-                {book.metadata.categories && book.metadata.categories.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {book.metadata.categories.map((cat) => (
-                      <span
-                        key={cat}
-                        className="rounded-full bg-[#241a12] border border-[#c9a15c]/20 px-2.5 py-0.5 text-[11px] text-[#d5c1a3]"
-                      >
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </>
             )}
 
@@ -682,12 +892,12 @@ export function BookRevealModal({
               <div className="space-y-5">
                 {/* Auto-Match from Front Cover */}
                 {coverSrc && !coverFailed && (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-[#c9a15c]/22 bg-[#160f0b] p-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border ui-surface-card p-3.5">
                     <div>
-                      <p className="text-xs font-medium text-[#f2e4cc]">
+                      <p className="text-xs font-semibold ui-text-primary">
                         Harmonize Spine with Front Cover
                       </p>
-                      <p className="text-[11px] text-[#9a866f]">
+                      <p className="text-[11px] ui-text-muted">
                         Sample representative colors directly from this edition&apos;s jacket.
                       </p>
                     </div>
@@ -695,9 +905,9 @@ export function BookRevealModal({
                       type="button"
                       disabled={busy || matchingCover}
                       onClick={handleMatchFromCover}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#352517] hover:bg-[#46311f] border border-[#dab468]/45 px-3 py-1.5 text-xs font-medium text-[#f7e2b9] transition cursor-pointer shrink-0"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#cfa458]/18 hover:bg-[#cfa458]/28 border border-[#cfa458]/50 px-3 py-1.5 text-xs font-semibold ui-text-primary transition cursor-pointer shrink-0"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-[#e4be73]" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#c89d54]" />
                       {matchingCover ? 'Sampling...' : 'Match Cover'}
                     </button>
                   </div>
@@ -706,10 +916,10 @@ export function BookRevealModal({
                 {/* Spine Color Swatches + Custom Picker */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs uppercase tracking-widest text-[#b6a185]">
+                    <span className="text-xs uppercase tracking-widest ui-text-muted">
                       Spine Color
                     </span>
-                    <label className="inline-flex items-center gap-2 text-xs text-[#d6c2a5] cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs ui-text-secondary cursor-pointer">
                       <span>Custom:</span>
                       <input
                         type="color"
@@ -723,7 +933,7 @@ export function BookRevealModal({
                             accentColor: null,
                           })
                         }
-                        className="w-7 h-6 rounded border border-[#c9a15c]/30 bg-transparent cursor-pointer"
+                        className="w-7 h-6 rounded border ui-surface-input cursor-pointer"
                       />
                     </label>
                   </div>
@@ -748,8 +958,8 @@ export function BookRevealModal({
                           }
                           className={`h-9 sm:h-7 rounded-md border transition cursor-pointer ${
                             active
-                              ? 'border-[#f4d898] ring-2 ring-[#e2bc71]/60 scale-105'
-                              : 'border-white/15 hover:scale-105'
+                              ? 'border-[#cfa458] ring-2 ring-[#cfa458]/60 scale-105'
+                              : 'border-black/20 hover:scale-105'
                           }`}
                           style={{ backgroundColor: p.primary }}
                         />
@@ -760,7 +970,7 @@ export function BookRevealModal({
 
                 {/* Binding Material */}
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#b6a185] mb-2">
+                  <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
                     Binding Material
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -772,8 +982,8 @@ export function BookRevealModal({
                         onClick={() => applyOverrides({ bindingStyle: opt.value })}
                         className={`px-3 py-1.5 rounded-lg text-xs border transition cursor-pointer ${
                           appearance.bindingStyle === opt.value
-                            ? 'bg-[#362618] border-[#e0b86d] text-[#f7e3ba]'
-                            : 'bg-[#140e0a] border-[#c9a15c]/20 text-[#bca88d] hover:text-[#f2e4cc]'
+                            ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                            : 'ui-surface-card ui-text-secondary hover:ui-text-primary'
                         }`}
                       >
                         {opt.label}
@@ -785,7 +995,7 @@ export function BookRevealModal({
                 {/* Spine Motif & Typography */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-widest text-[#b6a185] mb-2">
+                    <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
                       Spine Motif
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -797,8 +1007,8 @@ export function BookRevealModal({
                           onClick={() => applyOverrides({ motif: opt.value })}
                           className={`px-2.5 py-1 rounded text-xs border transition cursor-pointer ${
                             appearance.motif === opt.value
-                              ? 'bg-[#362618] border-[#e0b86d] text-[#f7e3ba]'
-                              : 'bg-[#140e0a] border-[#c9a15c]/20 text-[#bca88d]'
+                              ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                              : 'ui-surface-card ui-text-secondary'
                           }`}
                         >
                           {opt.label}
@@ -807,7 +1017,7 @@ export function BookRevealModal({
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-widest text-[#b6a185] mb-2">
+                    <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
                       Spine Typography
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -819,8 +1029,8 @@ export function BookRevealModal({
                           onClick={() => applyOverrides({ fontStyle: opt.value })}
                           className={`px-2.5 py-1 rounded text-xs border transition cursor-pointer ${
                             appearance.fontStyle === opt.value
-                              ? 'bg-[#362618] border-[#e0b86d] text-[#f7e3ba]'
-                              : 'bg-[#140e0a] border-[#c9a15c]/20 text-[#bca88d]'
+                              ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                              : 'ui-surface-card ui-text-secondary'
                           }`}
                         >
                           {opt.label}
@@ -831,8 +1041,8 @@ export function BookRevealModal({
                 </div>
 
                 {/* Custom Cover / Spine Artwork Upload */}
-                <div className="rounded-lg border border-[#c9a15c]/18 bg-[#140e0a] p-3.5 space-y-2.5">
-                  <p className="text-xs uppercase tracking-widest text-[#b6a185]">
+                <div className="rounded-xl border ui-surface-card p-3.5 space-y-2.5">
+                  <p className="text-xs uppercase tracking-widest ui-text-muted">
                     Custom Artwork Uploads
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -849,9 +1059,9 @@ export function BookRevealModal({
                       type="button"
                       disabled={busy}
                       onClick={() => coverUploadRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a15c]/25 bg-[#20160f] hover:bg-[#2d1f15] px-3 py-1.5 text-xs text-[#e9d7ba] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border ui-surface-input hover:border-[#cfa458]/60 px-3 py-1.5 text-xs ui-text-primary cursor-pointer"
                     >
-                      <Upload className="w-3.5 h-3.5 text-[#dab468]" />
+                      <Upload className="w-3.5 h-3.5 text-[#c89d54]" />
                       Upload Cover Image
                     </button>
 
@@ -868,9 +1078,9 @@ export function BookRevealModal({
                       type="button"
                       disabled={busy}
                       onClick={() => spineUploadRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a15c]/25 bg-[#20160f] hover:bg-[#2d1f15] px-3 py-1.5 text-xs text-[#e9d7ba] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border ui-surface-input hover:border-[#cfa458]/60 px-3 py-1.5 text-xs ui-text-primary cursor-pointer"
                     >
-                      <Upload className="w-3.5 h-3.5 text-[#dab468]" />
+                      <Upload className="w-3.5 h-3.5 text-[#c89d54]" />
                       Upload Spine Image
                     </button>
 
@@ -884,7 +1094,7 @@ export function BookRevealModal({
                             customSpineUrl: null,
                           })
                         }
-                        className="text-xs text-[#bda78b] hover:text-[#f5e6cb] underline ml-auto cursor-pointer"
+                        className="text-xs ui-text-secondary hover:ui-text-primary underline ml-auto cursor-pointer"
                       >
                         Reset Artwork
                       </button>
@@ -900,7 +1110,7 @@ export function BookRevealModal({
                 <div>
                   <label
                     htmlFor="move-compartment-select"
-                    className="block text-xs uppercase tracking-widest text-[#b6a185] mb-2"
+                    className="block text-xs uppercase tracking-widest ui-text-muted mb-2"
                   >
                     Shelf Compartment
                   </label>
@@ -909,7 +1119,7 @@ export function BookRevealModal({
                     disabled={busy}
                     value={shelfBook.compartmentId}
                     onChange={(e) => handleMoveCompartment(e.target.value)}
-                    className="w-full rounded-lg bg-[#140e0a] border border-[#c9a15c]/25 px-3 py-2.5 sm:py-2 text-base sm:text-sm text-[#f4e7d2] focus:outline-none focus:border-[#dbb468]"
+                    className="w-full rounded-lg ui-surface-input border px-3 py-2.5 sm:py-2 text-base sm:text-sm focus:outline-none focus:border-[#cfa458]"
                   >
                     {allBookshelves && allBookshelves.length > 1
                       ? allBookshelves.map((s) => (
@@ -956,14 +1166,14 @@ export function BookRevealModal({
                     <div
                       role="alert"
                       data-testid="move-compartment-error"
-                      className="mt-2.5 rounded-xl border-2 border-red-400/75 bg-red-950/65 px-3.5 py-2.5 flex items-start gap-2.5 text-sm text-red-100"
+                      className="mt-2.5 rounded-xl border-2 ui-alert-danger px-3.5 py-2.5 flex items-start gap-2.5 text-sm"
                     >
-                      <AlertTriangle className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 ui-alert-danger-icon shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-white">
+                        <p className="font-semibold">
                           Cannot move book to that shelf
                         </p>
-                        <p className="text-xs text-red-100/95 mt-0.5">
+                        <p className="text-xs ui-alert-danger-subtext mt-0.5">
                           {moveError}
                         </p>
                       </div>
@@ -973,7 +1183,7 @@ export function BookRevealModal({
 
                 {/* Accessible Left / Right Order Controls */}
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#b6a185] mb-2">
+                  <p className="text-xs uppercase tracking-widest ui-text-muted mb-2">
                     Order Within Shelf (Position {shelfBook.position + 1} of{' '}
                     {currentComp?.books.length ?? 1})
                   </p>
@@ -982,7 +1192,7 @@ export function BookRevealModal({
                       type="button"
                       disabled={busy || shelfBook.position <= 0}
                       onClick={() => handleShiftPosition(-1)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a15c]/25 bg-[#19120c] hover:bg-[#281d14] disabled:opacity-40 px-3.5 py-2 text-xs text-[#ecdac0] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border ui-surface-input hover:border-[#cfa458]/60 disabled:opacity-40 px-3.5 py-2 text-xs ui-text-primary cursor-pointer"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
                       Move Left
@@ -995,7 +1205,7 @@ export function BookRevealModal({
                         shelfBook.position >= currentComp.books.length - 1
                       }
                       onClick={() => handleShiftPosition(1)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a15c]/25 bg-[#19120c] hover:bg-[#281d14] disabled:opacity-40 px-3.5 py-2 text-xs text-[#ecdac0] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border ui-surface-input hover:border-[#cfa458]/60 disabled:opacity-40 px-3.5 py-2 text-xs ui-text-primary cursor-pointer"
                     >
                       Move Right
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1003,12 +1213,13 @@ export function BookRevealModal({
                   </div>
                 </div>
 
-                {/* Physical Shelf Orientation */}
+                {/* Physical Shelf Orientation (now includes Horizontal Stack Flat!) */}
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-[#b6a185] mb-2">
+                  <p className="text-xs uppercase tracking-widest ui-text-muted mb-2 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-[#c89d54]" />
                     Display Orientation
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {ORIENTATION_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
@@ -1024,49 +1235,52 @@ export function BookRevealModal({
                             setBusy(false);
                           }
                         }}
-                        className={`py-2 px-2.5 rounded-lg text-xs border transition cursor-pointer ${
+                        className={`py-2 px-2 rounded-lg text-xs border transition cursor-pointer ${
                           shelfBook.orientation === opt.value
-                            ? 'bg-[#362618] border-[#e0b86d] text-[#f7e3ba]'
-                            : 'bg-[#140e0a] border-[#c9a15c]/20 text-[#bca88d] hover:text-[#f2e4cc]'
+                            ? 'bg-[#cfa458]/20 border-[#cfa458] ui-text-primary font-semibold'
+                            : 'ui-surface-card ui-text-secondary hover:ui-text-primary'
                         }`}
                       >
                         {opt.label}
                       </button>
                     ))}
                   </div>
+                  <p className="text-[11px] ui-text-muted mt-1.5">
+                    Tip: Place 2–4 &ldquo;Stack Flat&rdquo; books next to each other to form a realistic horizontal stack.
+                  </p>
                 </div>
               </div>
             )}
           </div>
 
           {/* Footer: Remove Book */}
-          <div className="px-4 sm:px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-[#c9a15c]/15 bg-[#130d09] flex flex-wrap items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t ui-surface-header flex flex-wrap items-center justify-between gap-3">
             {!confirmRemove ? (
               <button
                 type="button"
                 data-testid="remove-book-btn"
                 onClick={() => setConfirmRemove(true)}
-                className="inline-flex items-center gap-1.5 text-xs text-red-300/85 hover:text-red-200 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Remove from Collection
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-red-200">Remove this volume?</span>
+                <span className="text-xs text-red-400">Remove this volume?</span>
                 <button
                   type="button"
                   disabled={busy}
                   data-testid="confirm-remove-book-btn"
                   onClick={handleRemove}
-                  className="rounded-md bg-red-800 hover:bg-red-700 px-3 py-1 text-xs font-medium text-white cursor-pointer"
+                  className="rounded-md bg-red-700 hover:bg-red-600 px-3 py-1 text-xs font-medium text-white cursor-pointer"
                 >
                   Confirm Remove
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmRemove(false)}
-                  className="text-xs text-[#b5a086] hover:text-[#f3e5cd] px-2 py-1 cursor-pointer"
+                  className="text-xs ui-text-secondary hover:ui-text-primary px-2 py-1 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1076,7 +1290,7 @@ export function BookRevealModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[#c9a15c]/25 bg-[#20160f] hover:bg-[#2c1f16] px-4 py-1.5 text-xs font-medium text-[#f2e3ca] cursor-pointer"
+              className="rounded-full border ui-surface-input hover:border-[#cfa458]/60 px-4 py-1.5 text-xs font-medium ui-text-primary cursor-pointer"
             >
               Return to Shelf
             </button>

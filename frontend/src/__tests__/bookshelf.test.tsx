@@ -384,3 +384,24 @@ describe('<ShelfCustomizerDrawer /> whole-bookshelf sorting controls', () => {
     );
   });
 });
+
+describe('Tactile shelf physics & spotlight lens', () => {
+  it('groups consecutive stacked books into horizontal stacks and applies spotlight dim/match states', () => {
+    const shelf = makeBookshelf(0);
+    const readingBook = makeShelfBook(0, 'comp-0', { title: 'Dune', authors: ['Frank Herbert'] });
+    readingBook.visualOverrides = { readingStatus: 'reading' };
+    const stackedA = makeShelfBook(1, 'comp-0', { title: 'Invisible Cities', authors: ['Italo Calvino'] });
+    stackedA.orientation = 'stacked';
+    const stackedB = makeShelfBook(2, 'comp-0', { title: 'Ficciones', authors: ['Jorge Luis Borges'] });
+    stackedB.orientation = 'stacked';
+    shelf.compartments[0].books = [readingBook, stackedA, stackedB];
+
+    render(<Bookshelf bookshelf={shelf} spotlight="reading" onSelectBook={vi.fn()} />);
+
+    expect(screen.getByTestId('book-horizontal-stack')).toBeInTheDocument();
+    const readingSlot = screen.getByTestId('book-spine-sb-0').closest('.book-slot');
+    const stackedSlot = screen.getByTestId('book-spine-sb-1').closest('.book-slot');
+    expect(readingSlot).toHaveAttribute('data-spotlight', 'match');
+    expect(stackedSlot).toHaveAttribute('data-spotlight', 'dim');
+  });
+});

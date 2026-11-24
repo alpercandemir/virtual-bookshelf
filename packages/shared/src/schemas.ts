@@ -39,6 +39,7 @@ export const bookOrientationSchema = z.enum([
   'leaning-left',
   'leaning-right',
   'face-out',
+  'stacked',
 ]);
 
 export const spineMotifSchema = z.enum([
@@ -88,6 +89,7 @@ export const updateBookshelfSchema = z.object({
       lightingWarmth: z.number().min(0).max(1).optional(),
       paperThicknessMm: z.number().min(0.04).max(0.14).optional(),
       showSconceLight: z.boolean().optional(),
+      showBookends: z.boolean().optional(),
       cabinetStyle: cabinetStyleSchema.optional(),
     })
     .optional(),

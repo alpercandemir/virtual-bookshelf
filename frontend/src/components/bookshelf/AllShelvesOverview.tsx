@@ -473,35 +473,71 @@ export function AllShelvesOverview({
     }
   };
 
+  const totalVolumesAll = bookshelves.reduce(
+    (sum, s) => sum + s.compartments.reduce((cSum, c) => cSum + c.books.length, 0),
+    0
+  );
+  const readingCountAll = bookshelves.reduce(
+    (sum, s) =>
+      sum +
+      s.compartments.reduce(
+        (cSum, c) =>
+          cSum +
+          c.books.filter((b) => b.visualOverrides.readingStatus === 'reading').length,
+        0
+      ),
+    0
+  );
+
   return (
     <section
       aria-label="All Bookshelves Overview"
       data-testid="all-shelves-overview"
-      className="w-full max-w-6xl mx-auto px-3.5 sm:px-6 py-5 sm:py-8"
+      className="w-full max-w-6xl mx-auto px-3.5 sm:px-6 py-4 sm:py-7"
     >
-      {/* Mission Control Header */}
-      <div className="mb-6">
-        <p
-          className={`text-xs uppercase tracking-[0.2em] font-medium ${
-            isLightRoom ? 'text-[#7c6952]' : 'text-[#c9a35c]'
+      {/* Architectural Gallery Wall Header */}
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p
+            className={`text-[11px] uppercase tracking-[0.22em] font-medium ${
+              isLightRoom ? 'text-[#7c6952]' : 'text-[#c9a35c]'
+            }`}
+          >
+            Library Wing &middot; Architectural Elevation
+          </p>
+          <h2
+            className={`font-display text-3xl sm:text-4xl font-semibold mt-1 ${
+              isLightRoom ? 'text-[#231d17]' : 'text-[#f8eedc]'
+            }`}
+          >
+            Your Bookcases
+          </h2>
+        </div>
+        <div
+          className={`inline-flex items-center gap-3 rounded-full border px-4 py-1.5 text-xs backdrop-blur-md ${
+            isLightRoom
+              ? 'border-[#d6cab7] bg-white/65 text-[#514232]'
+              : 'border-[#c9a15c]/22 bg-[#1a130e]/70 text-[#cbb596]'
           }`}
         >
-          All Shelves View
-        </p>
-        <h2
-          className={`font-display text-3xl sm:text-4xl font-semibold mt-0.5 ${
-            isLightRoom ? 'text-[#231d17]' : 'text-[#f8eedc]'
-          }`}
-        >
-          Your Library Rooms &amp; Collections
-        </h2>
-        <p
-          className={`text-xs mt-1 ${
-            isLightRoom ? 'text-[#6c5d4c]' : 'text-[#b5a085]'
-          }`}
-        >
-          Click any bookcase to step inside, or drag cards to arrange your shelf order.
-        </p>
+          <span>
+            <strong className="font-semibold ui-text-primary">{bookshelves.length}</strong>{' '}
+            {bookshelves.length === 1 ? 'case' : 'cases'}
+          </span>
+          <span className="opacity-40">&middot;</span>
+          <span>
+            <strong className="font-semibold ui-text-primary">{totalVolumesAll}</strong>{' '}
+            {totalVolumesAll === 1 ? 'volume' : 'volumes'}
+          </span>
+          {readingCountAll > 0 && (
+            <>
+              <span className="opacity-40">&middot;</span>
+              <span className="text-[#d9848c] font-medium">
+                {readingCountAll} reading
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Responsive Mission Control Grid with Drag-and-Drop */}

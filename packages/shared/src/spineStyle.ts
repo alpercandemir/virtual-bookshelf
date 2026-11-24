@@ -3,6 +3,7 @@ import type {
   BookFormat,
   BookPalette,
   BookVisualOverrides,
+  SpineArchetype,
   SpineFontStyle,
   SpineMotif,
 } from './types.js';
@@ -46,6 +47,9 @@ export interface ResolvedSpineAppearance {
   headbandColor: string;
   bindingStyle: BindingStyle;
   motif: SpineMotif;
+  archetype: SpineArchetype;
+  patchColor: string;
+  patchTextColor: string;
   fontStyle: SpineFontStyle;
   /** Subtle organic hand-shelved micro-tilt (-0.45deg..+0.45deg) */
   microTiltDeg: number;
@@ -213,6 +217,30 @@ export function resolveSpineAppearance(params: {
   const headbandPalette = ['#B83B35', '#C8A355', '#274C43', '#D9CDB8', '#334257'];
   const headbandColor = headbandPalette[(h >> 7) % headbandPalette.length];
 
+  const archetypesByBinding: Record<BindingStyle, SpineArchetype[]> = {
+    'hardcover-leather': ['heritage-patch', 'classic-centered', 'heritage-patch'],
+    'hardcover-cloth': ['heritage-patch', 'editorial-block', 'author-top', 'classic-centered'],
+    'vintage-linen': ['editorial-block', 'author-top', 'heritage-patch'],
+    'dust-jacket': ['modern-minimal', 'editorial-block', 'author-top'],
+    paperback: ['editorial-block', 'modern-minimal', 'author-top'],
+  };
+  const archetypeChoices = archetypesByBinding[bindingStyle];
+  const archetype: SpineArchetype =
+    motif === 'editorial-stripe'
+      ? 'editorial-block'
+      : motif === 'minimal-modern'
+        ? 'modern-minimal'
+        : archetypeChoices[(h >> 9) % archetypeChoices.length];
+
+  const primaryLum = relativeLuminance(primaryColor);
+  const patchColor =
+    primaryLum > 0.34
+      ? '#231A15'
+      : (h >> 11) % 3 === 0
+        ? '#ECE2CD'
+        : darkenHex(primaryColor, 0.44);
+  const patchTextColor = pickReadableTextColor(patchColor);
+
   return {
     primaryColor,
     secondaryColor,
@@ -221,6 +249,9 @@ export function resolveSpineAppearance(params: {
     headbandColor,
     bindingStyle,
     motif,
+    archetype,
+    patchColor,
+    patchTextColor,
     fontStyle,
     microTiltDeg,
     patina,

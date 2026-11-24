@@ -4,7 +4,6 @@ import type { PrismaClient } from '@prisma/client';
 import {
   addBookSchema,
   computeOccupiedWidthPx,
-  dimensionsToShelfPixels,
   getCompartmentCapacityPx,
   normalizeIsbn,
   reorderBooksSchema,
@@ -33,24 +32,22 @@ function checkCompartmentCanAccept(params: {
   widthRatio: number;
   heightPx: number;
 }): boolean {
-  const occupied = computeOccupiedWidthPx(
-    params.existingBooks.map((b) => ({
-      dimensions: b.physicalDimensions,
-      orientation: b.orientation,
-    })),
+  const nextOccupied = computeOccupiedWidthPx(
+    [
+      ...params.existingBooks.map((b) => ({
+        dimensions: b.physicalDimensions,
+        orientation: b.orientation,
+      })),
+      {
+        dimensions: params.incomingDimensions,
+        orientation: params.incomingOrientation,
+      },
+    ],
     params.heightPx
   );
-  const incomingPx = dimensionsToShelfPixels(
-    params.incomingDimensions,
-    params.heightPx
-  );
-  const incomingW =
-    params.incomingOrientation === 'face-out'
-      ? Math.min(incomingPx.depthPx, 148) + 6
-      : incomingPx.spineWidthPx + 2;
 
   const capacity = getCompartmentCapacityPx(params.widthRatio);
-  return occupied + incomingW <= capacity + 24;
+  return nextOccupied <= capacity + 24;
 }
 
 export async function registerBookRoutes(
