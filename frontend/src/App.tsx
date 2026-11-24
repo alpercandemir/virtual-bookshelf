@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Bookmark,
+  Camera,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Plus,
   Sparkles,
+  Star,
+  StickyNote,
   Tag,
 } from 'lucide-react';
 import {
@@ -17,6 +22,7 @@ import { AuthScreen } from './components/auth/AuthScreen';
 import { TopToolbar } from './components/layout/TopToolbar';
 import { ToastRegion } from './components/layout/ToastRegion';
 import { Bookshelf } from './components/bookshelf/Bookshelf';
+import { matchesSpotlight, type ShelfSpotlightMode } from './components/bookshelf/Book';
 import { ShareShelfDialog } from './components/bookshelf/ShareShelfDialog';
 import { AllShelvesOverview } from './components/bookshelf/AllShelvesOverview';
 import {
@@ -67,6 +73,7 @@ function LibraryWorkspace() {
   );
   const [locateRequest, setLocateRequest] = useState<{ bookId: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInitialTab, setSearchInitialTab] = useState<'search' | 'scan' | 'manual'>('search');
   const [targetCompartmentId, setTargetCompartmentId] = useState<string | null>(
     null
   );
@@ -74,6 +81,12 @@ function LibraryWorkspace() {
   const [createShelfOpen, setCreateShelfOpen] = useState(false);
   const [sharingShelf, setSharingShelf] = useState<BookshelfDto | null>(null);
   const [libraryFindOpen, setLibraryFindOpen] = useState(false);
+  const [spotlight, setSpotlight] = useState<ShelfSpotlightMode>('all');
+
+  // Reset spotlight when switching shelves
+  useEffect(() => {
+    setSpotlight('all');
+  }, [bookshelf?.id]);
 
   // Global ⌘K / Ctrl+K shortcut for Find in My Library
   useEffect(() => {
@@ -125,19 +138,43 @@ function LibraryWorkspace() {
     goToNextShelf,
   ]);
 
-  const selectedShelfBook = useMemo(() => {
-    if (!bookshelf || !selectedShelfBookId) return null;
-    return (
-      bookshelf.compartments
-        .flatMap((c) => c.books)
-        .find((b) => b.id === selectedShelfBookId) ?? null
-    );
-  }, [bookshelf, selectedShelfBookId]);
-
-  const totalBooks = useMemo(() => {
-    if (!bookshelf) return 0;
-    return bookshelf.compartments.reduce((acc, c) => acc + c.books.length, 0);
+  const orderedShelfBooks = useMemo(() => {
+    if (!bookshelf) return [];
+    return [...bookshelf.compartments]
+      .sort((a, b) => a.row - b.row || a.column - b.column)
+      .flatMap((c) => c.books);
   }, [bookshelf]);
+
+  const selectedShelfBook = useMemo(() => {
+    if (!selectedShelfBookId) return null;
+    return orderedShelfBooks.find((b) => b.id === selectedShelfBookId) ?? null;
+  }, [orderedShelfBooks, selectedShelfBookId]);
+
+  const totalBooks = orderedShelfBooks.length;
+
+  const spotlightCounts = useMemo(() => {
+    const counts = {
+      reading: 0,
+      finished: 0,
+      favorites: 0,
+      notes: 0,
+      unread: 0,
+    };
+    for (const sb of orderedShelfBooks) {
+      if (matchesSpotlight(sb, 'reading')) counts.reading += 1;
+      if (matchesSpotlight(sb, 'finished')) counts.finished += 1;
+      if (matchesSpotlight(sb, 'favorites')) counts.favorites += 1;
+      if (matchesSpotlight(sb, 'notes')) counts.notes += 1;
+      if (matchesSpotlight(sb, 'unread')) counts.unread += 1;
+    }
+    return counts;
+  }, [orderedShelfBooks]);
+
+  const hasAnyReadingSignal =
+    spotlightCounts.reading > 0 ||
+    spotlightCounts.finished > 0 ||
+    spotlightCounts.favorites > 0 ||
+    spotlightCounts.notes > 0;
 
   if (!user) return null;
 
@@ -177,6 +214,15 @@ function LibraryWorkspace() {
     bookshelves.length > 1
       ? bookshelves[(activeIndex + 1) % bookshelves.length]
       : null;
+
+  const openAddDialog = (
+    tab: 'search' | 'scan' | 'manual' = 'search',
+    compartmentId: string | null = null
+  ) => {
+    setTargetCompartmentId(compartmentId);
+    setSearchInitialTab(tab);
+    setSearchOpen(true);
+  };
 
   const handleReorderComplete = async (
     updatedBookshelf: BookshelfDto,
@@ -223,6 +269,18 @@ function LibraryWorkspace() {
     pushToast(`Arranged bookshelf by ${labelMap[mode]}.`, 'success');
   };
 
+  const handleQuickUpdateBook: Parameters<typeof Bookshelf>[0]['onQuickUpdateBook'] =
+    async (shelfBookId, payload) => {
+      try {
+        await updateShelfBook(shelfBookId, payload);
+      } catch (err) {
+        pushToast(
+          err instanceof ApiError ? err.message : 'Could not update book.',
+          'error'
+        );
+      }
+    };
+
   return (
     <div
       className="library-room flex flex-col"
@@ -241,10 +299,7 @@ function LibraryWorkspace() {
         }
         onOpenCreateShelf={() => setCreateShelfOpen(true)}
         onOpenLibraryFind={() => setLibraryFindOpen(true)}
-        onOpenSearch={() => {
-          setTargetCompartmentId(null);
-          setSearchOpen(true);
-        }}
+        onOpenSearch={(tab = 'search') => openAddDialog(tab, null)}
         onOpenCustomizer={() => setCustomizerOpen(true)}
         onShareShelf={() => setSharingShelf(bookshelf)}
         onLibraryRestore={refreshBookshelf}
@@ -274,7 +329,7 @@ function LibraryWorkspace() {
         <main className="flex-1 flex flex-col items-center justify-start">
           {/* Compact Multi-Shelf Switcher Bar (shown when user has > 1 shelf) */}
           {bookshelves.length > 1 && (
-            <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 pt-3 flex items-center justify-start sm:justify-center gap-2 overflow-x-auto no-scrollbar sm:flex-wrap">
+            <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 pt-1 pb-1 flex items-center justify-start sm:justify-center gap-2 overflow-x-auto no-scrollbar sm:flex-wrap">
               {bookshelves.map((s) => {
                 const active = s.id === bookshelf.id;
                 return (
@@ -289,7 +344,7 @@ function LibraryWorkspace() {
                           : 'bg-[#cfa458] text-[#1a1107] border-[#e5c27b] font-semibold shadow'
                         : isLightRoom
                           ? 'bg-white/65 hover:bg-white text-[#4b3e30] border-[#d3c6b2]'
-                          : 'bg-[#1a130e]/75 hover:bg-[#281d15] text-[#cbb698] border-[#c9a15c]/22'
+                          : 'bg-[#1a130e]/70 hover:bg-[#281d15] text-[#cbb698] border-[#c9a15c]/22'
                     }`}
                   >
                     <span className="max-w-[130px] truncate">{s.name}</span>
@@ -329,24 +384,39 @@ function LibraryWorkspace() {
             </div>
           )}
 
+          {/* Hero Empty-Shelf Invitation featuring Scan Real Shelf */}
           {totalBooks === 0 && (
-            <div className="max-w-xl mx-auto mt-4 px-4 text-center">
+            <div className="max-w-2xl mx-auto mt-3 px-4 text-center">
               <div
-                className={`inline-flex flex-wrap items-center justify-center gap-3 rounded-xl border px-4 py-2.5 text-xs shadow ${
+                className={`inline-flex flex-wrap items-center justify-center gap-2.5 rounded-2xl border px-4 py-3 text-xs shadow-lg backdrop-blur-md ${
                   isLightRoom
                     ? 'border-[#d3c6b2] bg-white/80 text-[#463a2c]'
-                    : 'border-[#c9a15c]/22 bg-[#1c140e]/85 text-[#d6c3a6]'
+                    : 'border-[#c9a15c]/25 bg-[#1c140e]/80 text-[#d6c3a6]'
                 }`}
               >
-                <span>This shelf is freshly crafted and ready for your books.</span>
-                <button
-                  type="button"
-                  onClick={() => seedSamples(bookshelf.id)}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-[#342416] hover:bg-[#44301d] border border-[#dab468]/45 px-2.5 py-1 text-xs font-medium text-[#f7e3bb] cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#e4be73]" />
-                  Stock Sample Classics
-                </button>
+                <span>Your shelf is ready — digitize a real bookcase photo or start with classics.</span>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openAddDialog('scan', null)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[#d4aa5e] to-[#ab7e35] hover:from-[#dfb76c] hover:to-[#b8893e] px-3.5 py-1.5 text-xs font-semibold text-[#1a1107] shadow cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Scan Real Shelf
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => seedSamples(bookshelf.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium cursor-pointer transition ${
+                      isLightRoom
+                        ? 'border-[#c6b79f] bg-[#f4ece0] hover:bg-[#ebe0ce] text-[#3a2e20]'
+                        : 'border-[#dab468]/40 bg-[#2d1f14] hover:bg-[#3c2a1b] text-[#f7e3bb]'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#d9b265]" />
+                    Stock Sample Classics
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -375,11 +445,10 @@ function LibraryWorkspace() {
               locateRequest={locateRequest}
               onLocated={() => setLocateRequest(null)}
               bookshelf={bookshelf}
+              spotlight={spotlight}
               onSelectBook={(sb) => setSelectedShelfBookId(sb.id)}
-              onQuickAddToCompartment={(compId) => {
-                setTargetCompartmentId(compId);
-                setSearchOpen(true);
-              }}
+              onQuickUpdateBook={handleQuickUpdateBook}
+              onQuickAddToCompartment={(compId) => openAddDialog('search', compId)}
               onReorderComplete={handleReorderComplete}
               onInvalidDrop={(msg) => pushToast(msg, 'error')}
               recentlyAddedId={recentlyAddedId}
@@ -402,6 +471,69 @@ function LibraryWorkspace() {
               </button>
             )}
           </div>
+
+          {/* Floating Live Shelf Spotlight / Lens Pill Bar */}
+          {totalBooks > 0 && (
+            <div
+              role="toolbar"
+              aria-label="Shelf spotlight filter"
+              data-testid="shelf-spotlight-bar"
+              className={`mb-4 mx-3 inline-flex items-center gap-1 rounded-full border p-1 backdrop-blur-md shadow-lg max-w-[calc(100%-1.5rem)] overflow-x-auto no-scrollbar ${
+                isLightRoom
+                  ? 'border-[#d4c7b3]/90 bg-white/70 text-[#43372a]'
+                  : 'border-[#c9a15c]/20 bg-[#17110c]/75 text-[#c8b396]'
+              }`}
+            >
+              {(
+                [
+                  { id: 'all', label: 'All', count: totalBooks },
+                  { id: 'reading', label: 'Reading', count: spotlightCounts.reading, Icon: Bookmark },
+                  { id: 'finished', label: 'Finished', count: spotlightCounts.finished, Icon: CheckCircle2 },
+                  { id: 'favorites', label: '4–5★', count: spotlightCounts.favorites, Icon: Star },
+                  { id: 'notes', label: 'Notes', count: spotlightCounts.notes, Icon: StickyNote },
+                  ...(hasAnyReadingSignal
+                    ? [{ id: 'unread' as const, label: 'Unread', count: spotlightCounts.unread }]
+                    : []),
+                ] as Array<{
+                  id: ShelfSpotlightMode;
+                  label: string;
+                  count: number;
+                  Icon?: typeof Bookmark;
+                }>
+              ).map(({ id, label, count, Icon }) => {
+                const active = spotlight === id;
+                const disabled = id !== 'all' && count === 0;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={active}
+                    onClick={() => setSpotlight((curr) => (curr === id ? 'all' : id))}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] transition whitespace-nowrap shrink-0 ${
+                      active
+                        ? isLightRoom
+                          ? 'bg-[#2a2219] text-[#faf4e8] font-semibold shadow-sm cursor-pointer'
+                          : 'bg-[#cfa458] text-[#1a1107] font-semibold shadow-sm cursor-pointer'
+                        : disabled
+                          ? 'opacity-35 cursor-default'
+                          : isLightRoom
+                            ? 'hover:bg-[#ebe1d1] cursor-pointer'
+                            : 'hover:bg-[#2a1f16] hover:text-[#f4e5cc] cursor-pointer'
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3 h-3" />}
+                    <span>{label}</span>
+                    {id !== 'all' && count > 0 && (
+                      <span className="opacity-70 tabular-nums text-[10px]">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Mobile Prev/Next Shelf Arrows */}
           {bookshelves.length > 1 && (
@@ -437,18 +569,15 @@ function LibraryWorkspace() {
           )}
 
           <p
-            className={`text-[11px] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 text-center ${
-              isLightRoom ? 'text-[#736452]' : 'text-[#7e6c57]'
+            className={`text-[11px] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 text-center opacity-70 ${
+              isLightRoom ? 'text-[#736452]' : 'text-[#84725d]'
             }`}
           >
             <span className="sm:hidden">
               Swipe between compartments &middot; Press &amp; hold a book to rearrange
             </span>
             <span className="hidden sm:inline">
-              Click any spine to pull it from the shelf &middot; Drag volumes to rearrange &middot;{' '}
-              {bookshelves.length > 1
-                ? 'Use ← / → arrows to switch shelves or open All Shelves'
-                : 'Create multiple shelves by year or genre anytime'}
+              Click any spine to inspect &middot; Right-click for quick pose &amp; status &middot; Drag to rearrange
             </span>
           </p>
         </main>
@@ -461,6 +590,8 @@ function LibraryWorkspace() {
         shelfBook={selectedShelfBook}
         bookshelf={bookshelf}
         allBookshelves={bookshelves}
+        shelfBooks={orderedShelfBooks}
+        onNavigateBook={(bookId) => setSelectedShelfBookId(bookId)}
         onClose={() => setSelectedShelfBookId(null)}
         onUpdateBook={updateShelfBook}
         onRemoveBook={removeShelfBook}
@@ -473,6 +604,7 @@ function LibraryWorkspace() {
         bookshelf={bookshelf}
         allBookshelves={bookshelves}
         initialCompartmentId={targetCompartmentId}
+        initialTab={searchInitialTab}
         onAddBook={addBookToShelf}
         onOpenCustomizer={() => {
           setSearchOpen(false);

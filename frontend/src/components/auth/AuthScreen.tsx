@@ -190,7 +190,7 @@ export function AuthScreen() {
         </div>
 
         <p className="text-center text-xs text-[#826f5a] mt-5">
-          Private local SQLite collection &middot; Real physical book proportions
+          Real physical book proportions &middot; AI shelf photo scanner &middot; Private collection
         </p>
       </div>
     </div>

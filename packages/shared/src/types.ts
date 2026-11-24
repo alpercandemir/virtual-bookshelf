@@ -32,7 +32,15 @@ export type BookOrientation =
   | 'vertical'
   | 'leaning-left'
   | 'leaning-right'
-  | 'face-out';
+  | 'face-out'
+  | 'stacked';
+
+export type SpineArchetype =
+  | 'heritage-patch'
+  | 'editorial-block'
+  | 'author-top'
+  | 'classic-centered'
+  | 'modern-minimal';
 
 export type BookProvider = 'google_books' | 'open_library' | 'manual' | 'sample';
 
@@ -103,6 +111,7 @@ export interface BookshelfConfiguration {
   lightingWarmth?: number; // 0..1
   paperThicknessMm?: number; // default 0.068 mm per page (sheet = 2 pages)
   showSconceLight?: boolean;
+  showBookends?: boolean;
   cabinetStyle?: CabinetStyle;
 }
 
