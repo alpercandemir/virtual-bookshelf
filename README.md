@@ -1,25 +1,31 @@
 # The Virtual Bookshelf
 
-A hobby project for keeping track of the books on my physical shelves. I wanted to see the books spine-out, move them around, and pull one off the shelf to look at it.
+I built The Virtual Bookshelf to keep track of the books on my physical shelves. On screen, a thick hardcover has room for its title to run across the spine. A slim paperback carries its title lengthwise. You can pull either one out, turn it over, and put it back where you’ll remember it.
 
-![A walnut bookcase with sample books of different heights and thicknesses, arranged by author surname](docs/screenshots/bookshelf.webp)
+[Open the live bookshelf](https://honeybooks.138.2.168.194.sslip.io/)
 
-## What you can do
+![Two rows of the 2026 Books birch bookcase, with 43 volumes and a mix of stacked and vertical spine titles](docs/screenshots/bookshelf.webp)
 
-- Keep several bookcases and give each its own layout, wood finish, and room theme. Drag books between compartments or arrange an entire bookcase by title, author, author surname, height, or spine color.
-- Find editions by title, author, or ISBN using Google Books and Open Library, or enter a book by hand. Press <kbd>⌘</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> to find a book you already shelved.
-- In Find, choose **Show on shelf** for the bookcase, compartment, and position from the left, or **Open details** to inspect the book. On phones, tap the bookcase map or swipe to switch compartments.
-- On phones, open the top-right menu to customize or share a shelf.
-- Click a spine to turn the book in 3D, check its edition and dimensions, or record reading status, a rating, and notes. The app estimates dimensions when the catalog doesn't supply them.
-- Use **Share shelf** to save a bookcase as a PNG. The account menu can export your library as a JSON backup and restore the shelves as copies.
+## Around the bookcase
 
-![The Dune book detail panel with a 3D cover, reading controls, and estimated dimensions](docs/screenshots/book-details.webp)
+- **Arrange a shelf.** Drag books between compartments. Right-click a spine to lean a book, lay it flat, or display the cover. Each case has its own layout, wood finish, and room theme, and you can sort it by title, author, author surname, height, or spine color.
+- **Find a book you own.** Press <kbd>⌘</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd>, search for a title, then choose **Show on shelf** to see its compartment and position from the left. On a phone, tap the bookcase map or swipe between compartments.
+- **See what you’ve been reading.** The spotlight below the bookcase highlights finished books, four- and five-star reads, or books with notes while keeping each spine in place.
+- **Share or back up the collection.** **Share shelf** saves a bookcase as a PNG. The account menu exports the whole library as JSON and can restore the shelves as copies.
 
-### Import from a shelf photo
+## Inside a book
 
-In **Add Book → Scan Photo**, upload a photo of one or two rows. Gemini reads the spines, then the app looks for catalog matches. You can review the matches, fix titles, and choose what to add. **Keep photo layout** lets you pick a compartment for each detected row.
+Click a spine and drag the book to rotate it through 360°. The inspector shows the cover, spine, and back at the edition’s proportions. In **Details**, you can check the publisher, ISBN, and dimensions, mark your reading progress, leave a star rating, or jot down a favorite passage. Dimensions are labeled as estimates when the catalog lacks measurements.
 
-Photo scanning sends the resized image to Gemini and requires `GEMINI_API_KEY`. You can leave the key unset if you only use catalog search or manual entry.
+![Susanna Clarke’s Piranesi turned to show its cover and spine, beside the edition details and reading notes](docs/screenshots/book-details.webp)
+
+Use **Spine & Cover** to change the binding or artwork and **Shelf Position** to move the book to another compartment or bookcase.
+
+## Add your books
+
+Use **Add Book** to search Google Books and Open Library by title, author, or ISBN, or enter an edition by hand.
+
+To import a physical shelf, choose **Scan Photo** and upload a photo of one or two rows. The app sends a resized image to Gemini to read the spines, then looks up matching editions. Review the matches, correct any titles, and choose **Keep photo layout** to assign each row to a compartment before adding the books. Scanning requires `GEMINI_API_KEY`.
 
 ## Run it locally
 
@@ -50,4 +56,4 @@ Vite serves the frontend at [http://localhost:5173](http://localhost:5173) and p
 
 Run `npm test` for unit, API, and component tests. For browser tests, install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`.
 
-The app uses React and CSS 3D on the frontend, Fastify and Prisma on the backend, and a shared TypeScript workspace. See [the architecture notes](docs/ARCHITECTURE.md) for the project layout and rendering choices.
+The app uses React and CSS 3D for the bookcase, Fastify and Prisma for the API, and a shared TypeScript workspace for edition data and sizing. [Architecture notes](docs/ARCHITECTURE.md)
